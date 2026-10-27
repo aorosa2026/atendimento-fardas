@@ -431,6 +431,7 @@ let SESSAO = { nome: '', pw: '' };
 
 /* ---------- Ligação ao Apps Script ---------- */
 async function api(acao, dados, extra) {
+  if (/COLAR_AQUI/.test(API_URL)) throw new Error('Falta pôr o link /exec da app nova no ficheiro (API_URL).');
   let resp;
   if (dados) {
     // text/plain evita o pedido prévio (CORS) que o Apps Script não aceita
@@ -440,7 +441,13 @@ async function api(acao, dados, extra) {
     resp = await fetch(API_URL + '?acao=' + acao + '&pw=' + encodeURIComponent(SESSAO.pw) +
       Object.entries(extra || {}).map(([k, v]) => '&' + k + '=' + encodeURIComponent(v)).join(''));
   }
-  const j = await resp.json();
+  const txt = await resp.text();
+  let j;
+  try { j = JSON.parse(txt); } catch (e) {
+    throw new Error(/accounts\.google|ServiceLogin|signin/i.test(txt) ? 'O Google pediu login: na implementação, o acesso tem de ser "Qualquer pessoa".'
+      : /autoriza|authoriz|permission|permiss/i.test(txt) ? 'O script ainda não está autorizado: corre o configurar no editor e aceita as permissões.'
+      : 'O servidor não respondeu com dados (' + resp.status + '). Confirma o link /exec e faz Nova versão da implementação.');
+  }
   if (!j.ok) throw new Error(j.erro || 'Erro desconhecido');
   return j;
 }
@@ -486,7 +493,8 @@ async function entrar(automatico) {
   } catch (e) {
     const pwErrada = /palavra-passe/i.test(e.message || '');
     if (pwErrada) guardar('fardasv1_pw', '');      // só esquece a palavra-passe se estiver mesmo errada
-    if (pwErrada || automatico !== true) toast(pwErrada ? e.message : 'Sem ligação ao servidor. Verifica a rede e toca em Entrar (não precisas de escrever a palavra-passe).');
+    const semRede = e instanceof TypeError;   // só o fetch falhado é falta de rede
+    if (pwErrada || automatico !== true) toast(pwErrada || !semRede ? e.message : 'Sem resposta do servidor. Verifica a rede; se a rede estiver bem, confirma o link /exec, o acesso "Qualquer pessoa" e se o script foi autorizado (correr o configurar).');
     else toast('Sem ligação. Toca em Entrar quando houver rede.');
   } finally {
     b.disabled = false; b.textContent = 'Entrar';
@@ -1857,7 +1865,7 @@ function listarFichasEnt() {
   if (!l.length) { box.innerHTML = '<p class="meta">' + (q ? 'Nenhuma ficha encontrada.' : 'Não há fichas por usar.') + '</p>'; return; }
   l.forEach(f => {
     const d = document.createElement('div'); d.className = 'ficha-it';
-    d.innerHTML = '<b>' + esc(f.nome) + '</b> · ' + esc(f.codigo) + '<small>' + esc(f.email) + ' · ' + resumoFicha(f) + '</small>';
+    d.innerHTML = '<b>' + esc(f.nome) + '</b> · ' + esc(f.codigo) + '<small>' + esc([f.email, resumoFicha(f)].filter(Boolean).join(' · ')) + '</small>';
     d.onclick = () => abrirFicha(f.codigo);
     box.appendChild(d);
   });
@@ -1871,7 +1879,7 @@ function listarFichasTab() {
   if (!l.length) { box.innerHTML = '<p class="meta">Não há fichas por usar.</p>'; return; }
   l.forEach(f => {
     const d = document.createElement('details'); d.className = 'ficha-it';
-    d.innerHTML = '<summary><b>' + esc(f.nome) + '</b> · ' + esc(f.codigo) + '<small>' + esc(f.email) + ' · ' + resumoFicha(f) + '</small></summary>' +
+    d.innerHTML = '<summary><b>' + esc(f.nome) + '</b> · ' + esc(f.codigo) + '<small>' + esc([f.email, resumoFicha(f)].filter(Boolean).join(' · ')) + '</small></summary>' +
       '<ol style="margin:8px 0;padding-left:20px;font-size:.9rem">' + f.pecas.map(p => '<li>' + esc(p.tipo) + ' · ' + (p.tamanho ? 'tam. ' + esc(p.tamanho) : 'sem tamanho') +
         ' · ' + esc(nomeEst(p.estado)) + (p.defeitos.length ? '<br><small>' + esc(p.defeitos.join(', ')) + '</small>' : '') +
         (p.nota ? '<br><small>“' + esc(p.nota) + '”</small>' : '') + '</li>').join('') +
@@ -1931,7 +1939,7 @@ function desenharVerif() {
   if (!VERIF) return;
   const V = VERIF, f = V.f, el = document.createElement('div'); el.className = 'verif';
   el.innerHTML = '<div style="display:flex;gap:8px;align-items:flex-start"><div style="flex:1"><h3>' + esc(f.nome) + ' · ' + esc(f.codigo) + '</h3>' +
-    '<div class="meta" style="margin:0">' + esc(f.email) + ' · ' + resumoFicha(f) + '</div></div><button class="tira" title="Fechar">✕</button></div>' +
+    '<div class="meta" style="margin:0">' + esc([f.email, resumoFicha(f)].filter(Boolean).join(' · ')) + '</div></div><button class="tira" title="Fechar">✕</button></div>' +
     '<p class="meta" style="margin:6px 0 0">Pega em cada peça (vêm dobradas pela ordem da ficha) e confirma-a ou marca “Não aceite”. Corrige o estado ou o tamanho se for preciso.</p>';
   el.querySelector('.tira').onclick = () => { VERIF = null; desenharVerif(); };
   // agrupado por peça e tamanho declarado

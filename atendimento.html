@@ -1,0 +1,2026 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1f6f5c">
+<title>Atendimento · Banco de Fardas v1</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+  /* ======================================================================
+     LINHA A ALTERAR
+     API_URL → link da Aplicação Web do Apps Script do INVENTÁRIO (termina em /exec)
+     ====================================================================== */
+  const API_URL  = '17Alh6vQuIjZHy9DMTG5jjDWP9Iu7k_Z1iFAhEEnUzro';   // link /exec da implementação do projeto AtendimentoAPP
+</script>
+<style>
+  :root { --bg:#f6f4ef; --card:#fff; --ink:#1f2a2e; --muted:#6b7578; --acc:#1f6f5c; --ok:#e3f2ec; --no:#fbe9e7; --sai:#a3402e; --line:#e2ded6; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--bg); color:var(--ink); }
+  main { max-width:560px; margin:0 auto; padding:16px; }
+  header { display:flex; justify-content:space-between; align-items:center; }
+  h1 { font-size:1.25rem; margin:4px 0 12px; }
+  label { display:block; margin-top:10px; font-size:.9rem; color:var(--muted); }
+  .sair { background:none; border:0; color:var(--muted); font-size:.85rem; text-decoration:underline; cursor:pointer; }
+  .btn { border:0; border-radius:12px; padding:14px 16px; font-size:1rem; font-weight:600; cursor:pointer; }
+  .btn-acc { background:var(--acc); color:#fff; width:100%; }
+  .btn-sai { background:#fff; color:var(--sai); border:2px solid var(--sai); width:100%; }
+  .btn:disabled { opacity:.6; }
+  .link { background:none; border:0; color:var(--acc); text-decoration:underline; font-size:.9rem; padding:8px 0; cursor:pointer; }
+
+  /* separadores */
+  .tabs { display:flex; gap:6px; background:#ebe7df; padding:4px; border-radius:12px; margin-bottom:14px; }
+  .tabs button { flex:1; border:0; background:none; padding:10px; border-radius:9px; font-size:.95rem; font-weight:600; color:var(--muted); cursor:pointer; }
+  .tabs button.sel { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+
+  #leitor { width:100%; margin-top:10px; border-radius:12px; overflow:hidden; }
+  input[type=search], input[type=text], input[type=password] { width:100%; padding:14px; font-size:1rem; border:1px solid var(--line); border-radius:12px; margin-top:6px; background:#fff; color:var(--ink); }
+  #pesquisa { margin-top:12px; }
+
+  .filtro-tit { font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:12px 0 4px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { border:1px solid var(--line); background:#fff; border-radius:999px; padding:8px 13px; font-size:.92rem; cursor:pointer; color:var(--ink); }
+  .chip.sel { background:var(--acc); color:#fff; border-color:var(--acc); }
+  .extraT { border:1px solid var(--line); background:#fff; border-radius:999px; padding:1px 7px; font-size:.9rem; cursor:pointer; margin-left:2px; }
+  .extraT.aberto { background:#fff6db; border-color:#e6cf8a; }
+  .outraApp { margin-left:auto; margin-right:10px; font-size:.82rem; color:var(--acc); text-decoration:none; border:1px solid var(--line); border-radius:999px; padding:4px 10px; background:#fff; }
+  body[data-modo="leva"] .so-ent, body[data-modo="entrega"] .so-sai { display:none !important; }
+  .ficha-it { background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; cursor:pointer; }
+  .ficha-it small { display:block; color:var(--muted); }
+  .verif { background:#fff; border:2px solid var(--acc); border-radius:14px; padding:12px; margin:10px 0; }
+  .verif h3 { margin:0 0 2px; font-size:1.05rem; }
+  .vgrp { font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:12px 0 4px; }
+  .vp { border:1px solid var(--line); border-radius:10px; padding:8px 10px; margin-bottom:6px; }
+  .vp.ok { border-color:#8cc7b2; background:#f2faf6; } .vp.nao { border-color:#e7b3a9; background:#fdf3f1; }
+  .vp .l1 { display:flex; gap:8px; align-items:baseline; } .vp .l1 b { flex:none; } .vp .l1 span { flex:1; min-width:0; font-size:.88rem; }
+  .vp .l2 { display:flex; gap:6px; margin-top:6px; } .vp .l2 select { flex:1; min-width:0; margin:0; padding:6px; font:inherit; font-size:.85rem; border:1px solid var(--line); border-radius:8px; background:#fff; }
+  .vp .l3 { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+  .vp .l3 button { border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 11px; font:inherit; font-size:.85rem; cursor:pointer; }
+  .vp .l3 button.sel.ok { background:var(--acc); color:#fff; border-color:var(--acc); } .vp .l3 button.sel.nao { background:var(--sai); color:#fff; border-color:var(--sai); }
+  .vp .val { font-weight:700; white-space:nowrap; }
+  .resumo li { display:flex; gap:8px; padding:4px 0; border-top:1px solid var(--line); font-size:.9rem; } .resumo li:first-child { border-top:0; }
+  .resumo li span { flex:1; } .resumo .rt { font-weight:700; color:var(--muted); font-size:.78rem; text-transform:uppercase; margin-top:8px; }
+  #qrFicha { display:flex; justify-content:center; margin:8px 0; } #qrFicha img, #qrFicha canvas { width:170px !important; height:170px !important; }
+  .chip.semTam { background:#fff6db; border-color:#e6cf8a; color:#7a5a00; }
+  .chip.semTam.sel { background:#b8860b; border-color:#b8860b; color:#fff; }
+
+  #resultados { list-style:none; padding:0; margin:10px 0 0; }
+  #resultados li { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:6px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  #resultados li small { color:var(--muted); display:block; margin-top:2px; }
+  #resultados li.aberto { border-color:var(--acc); border-width:2px; }
+  #resultados > #ficha { margin:-2px 0 10px; border:2px solid var(--acc); border-top-left-radius:0; border-top-right-radius:0; }
+  /* medir */
+  .tabs button { font-size:.88rem; padding:10px 4px; }
+  #numCm { font-size:1.6rem; font-weight:700; text-align:center; }
+  .resMed { text-align:center; padding:14px 10px; border-radius:14px; background:var(--ok); margin-top:12px; }
+  .resMed .t { font-size:.9rem; color:#155443; }
+  .resMed .n { font-size:2.6rem; font-weight:800; color:#155443; line-height:1.1; }
+  .resMed.fora { background:#fff6db; } .resMed.fora .t, .resMed.fora .n { color:#7a5a00; }
+  .resMed small { display:block; color:var(--muted); margin-top:4px; }
+  .tipoGrp { font-size:.78rem; color:var(--muted); margin:8px 0 4px; text-transform:uppercase; letter-spacing:.04em; }
+  .chip.addEnt { border-color:var(--acc); color:#155443; }
+  .espTag { white-space:nowrap; display:inline-block; font-size:.75rem; background:#fff6db; color:#7a5a00; border-radius:999px; padding:1px 8px; margin-left:4px; }
+  #listaEsp { list-style:none; padding:0; margin:0; }
+  #listaEsp > li { background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:8px; }
+  #listaEsp > li.aberto { border:2px solid var(--acc); }
+  #listaEsp .topo { display:flex; justify-content:space-between; gap:8px; cursor:pointer; }
+  #listaEsp small { display:block; color:var(--muted); }
+  #listaEsp .painel { margin-top:10px; }
+  .tabMedidas { width:100%; border-collapse:collapse; font-size:.9rem; margin:4px 0 14px; background:#fff; }
+  .tabMedidas th, .tabMedidas td { border:1px solid var(--line); padding:6px 8px; text-align:left; }
+  .tabMedidas th { background:var(--bg); font-weight:600; }
+  .tabMedidas td.n { text-align:right; white-space:nowrap; }
+  .tabMedidas td.t { font-weight:700; }
+  .grpMed { display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-top:10px; }
+  .grpMed b { font-size:.95rem; } .grpMed span { font-size:.8rem; color:var(--muted); }
+  .grpMed.atual b { color:var(--acc); }
+  .tabPrecos { width:100%; border-collapse:collapse; font-size:.85rem; background:#fff; }
+  .tabPrecos th, .tabPrecos td { border:1px solid var(--line); padding:5px 4px; text-align:center; white-space:nowrap; }
+  .tabPrecos th:first-child, .tabPrecos td:first-child { text-align:left; white-space:normal; }
+  .tabPrecos th { background:var(--bg); font-weight:600; position:sticky; top:0; z-index:2; box-shadow:0 1px 0 var(--line); }
+  .tabPrecos tr.grp td { background:#f4f1ea; font-weight:700; text-align:left; }
+  .tabPrecos td.na { color:#bbb; }
+  .legenda { font-size:.8rem; color:var(--muted); margin-top:8px; line-height:1.5; }
+  .obsMed { margin-top:10px; padding:8px 10px; border-radius:10px; background:#fff6db; color:#7a5a00; font-weight:700; }
+  .comoMedir { background:var(--bg); border-radius:10px; padding:8px 10px; font-size:.88rem; color:var(--muted); margin-top:8px; }
+  #pecasMed { list-style:none; padding:0; margin:8px 0 0; }
+  #pecasMed li { display:flex; justify-content:space-between; align-items:center; background:#fff; border:1px solid var(--line); border-radius:10px; padding:9px 11px; margin-bottom:6px; cursor:pointer; }
+  #pecasMed li small { display:block; color:var(--muted); }
+  .badge { min-width:38px; text-align:center; border-radius:999px; padding:4px 10px; font-weight:700; background:var(--ok); color:#155443; flex-shrink:0; }
+  .badge.zero { background:var(--no); color:#8a2c1f; }
+
+  .card { background:var(--card); border-radius:14px; padding:16px; margin-top:14px; border:1px solid var(--line); }
+  .cab { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .meta { color:var(--muted); font-size:.9rem; margin:4px 0 10px; }
+  .grande { font-size:1.05rem; margin:6px 0; }
+  .qtd { display:flex; align-items:center; gap:10px; margin:12px 0; }
+  .qtd button { width:42px; height:42px; border-radius:10px; border:1px solid var(--line); background:#fff; font-size:1.3rem; color:var(--ink); }
+  .qtd span { min-width:30px; text-align:center; font-size:1.2rem; font-weight:600; }
+  .acoes { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+  .fechar { float:right; background:none; border:0; font-size:1.2rem; color:var(--muted); cursor:pointer; }
+
+  /* atendimento */
+  :root { --leva:#2d4f7c; --leva-bg:#e7eef7; }
+  .btn-leva { background:var(--leva); color:#fff; width:100%; }
+  .sec-tit { display:flex; justify-content:space-between; align-items:baseline; margin:4px 0 6px; font-weight:700; }
+  .sec-tit small { font-weight:400; color:var(--muted); }
+  .sec-tit.leva { color:var(--leva); } .sec-tit.ent { color:var(--acc); }
+  .linhas { list-style:none; padding:0; margin:0 0 14px; }
+  .linhas li.l2 { display:block; padding:7px 0; }
+  .linhas li.l2 .r1, .linhas li.l2 .r2 { display:flex; align-items:center; gap:8px; }
+  .linhas li.l2 .r1 .nmT { flex:1; min-width:0; line-height:1.25; }
+  .linhas li.l2 .r1 .sub { font-weight:700; white-space:nowrap; }
+  .linhas li.l2 .r2 { margin-top:4px; }
+  .linhas li.l2 .r2 select.estSel { flex:1; min-width:0; max-width:none; margin:0; padding:5px 4px; }
+  .linhas li.l2 small.erro { display:block; color:var(--sai); font-weight:600; font-size:.8rem; margin-top:2px; }
+  .bloco { border-radius:12px; margin:0 0 16px; border:2px solid var(--line); overflow:hidden; background:#fff; }
+  .bloco .linhas { margin:0; padding:0 8px; }
+  .bloco > .meta { padding:0 8px; }
+  .bloco-tit { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:6px 10px; font-size:1rem; font-weight:700; color:#fff; }
+  .bloco-tit span { font-size:.85rem; font-weight:400; letter-spacing:0; text-align:right; }
+  .bloco-tit small { color:inherit; opacity:.85; }
+  .bloco-tit b { font-size:1rem; font-weight:800; margin-left:6px; }
+  .bloco.leva { border-color:var(--leva); } .bloco.leva .bloco-tit { background:var(--leva); }
+  .bloco.ent { border-color:var(--acc); } .bloco.ent .bloco-tit { background:var(--acc); }
+  .bloco.liv { border-color:#c9b98f; } .bloco.liv .bloco-tit { background:#f3ecd9; color:#5e4b16; }
+
+  .linhas li { display:flex; align-items:center; gap:8px; padding:8px 0; border-top:1px solid var(--line); }
+  .linhas li:first-child { border-top:0; }
+  .linhas .nm { flex:1; min-width:0; }
+  .linhas .nm small { display:block; color:var(--muted); }
+  .linhas .nm small.erro { color:var(--sai); font-weight:600; }
+  .mini { display:flex; align-items:center; gap:4px; }
+  .mini button { width:32px; height:32px; border-radius:8px; border:1px solid var(--line); background:#fff; font-size:1.1rem; color:var(--ink); }
+  .mini span { min-width:22px; text-align:center; font-weight:700; }
+  .sub { min-width:64px; text-align:right; font-weight:600; }
+  .tira { background:none; border:0; color:var(--muted); font-size:1rem; cursor:pointer; padding:4px; }
+  .vaziaL { color:var(--muted); font-size:.9rem; padding:4px 0 10px; }
+  #sugA { list-style:none; padding:0; margin:8px 0 0; }
+  #sugA li { display:flex; align-items:center; gap:8px; background:var(--bg); border-radius:10px; padding:8px 10px; margin-bottom:6px; }
+  #sugA li .nm { flex:1; min-width:0; }
+  #sugA li small { display:block; color:var(--muted); }
+  .modoAt { display:grid; grid-template-columns:1fr 1fr; gap:6px; background:#ebe7df; padding:4px; border-radius:12px; margin-bottom:10px; }
+  .modoAt button { border:0; border-radius:9px; padding:11px 6px; font-weight:700; font-size:1rem; background:transparent; color:var(--muted); cursor:pointer; }
+  .modoAt button.sel.leva { background:var(--leva); color:#fff; } .modoAt button.sel.ent { background:var(--acc); color:#fff; }
+  .btn-ent { background:var(--acc); color:#fff; width:100%; }
+  #sugA li.res { flex-wrap:wrap; }
+  #sugA li.res .nm { flex:1 1 100%; }
+  .estBts { display:flex; flex-wrap:wrap; gap:6px; flex:1 1 100%; }
+  .estBt { border:1px solid var(--line); background:#fff; border-radius:999px; padding:7px 11px; font-size:.86rem; cursor:pointer; color:var(--ink); }
+  .estBt b { font-weight:700; }
+  .estBt small { display:inline !important; color:var(--muted); margin-left:3px; }
+  .estBt.leva { border-color:#b9c9de; } .estBt.ent { border-color:#a9d3c3; }
+  .estBt:disabled { opacity:.4; cursor:default; }
+  #sugA li.espRes { background:#fff6db; }
+  #sugA li.item { cursor:pointer; }
+  #sugA li.item .seta { color:var(--muted); font-size:1.1rem; }
+  #sugA li.aberto { background:#fff; border:2px solid var(--acc); flex-direction:column; align-items:stretch; }
+  #sugA li.aberto.leva { border-color:var(--leva); }
+  .painelEst { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+  .painelEst button.estL { display:flex; align-items:center; gap:8px; width:100%; text-align:left; border:1px solid var(--line); background:var(--bg); border-radius:10px; padding:10px 12px; font-size:.95rem; cursor:pointer; color:var(--ink); }
+  .painelEst button.estL .nmE { flex:1; min-width:0; }
+  .painelEst button.estL .nmE small { display:block; color:var(--muted); font-size:.78rem; }
+  .painelEst button.estL .pr { font-weight:700; white-space:nowrap; }
+  .painelEst button.estL .noC { min-width:26px; text-align:center; border-radius:999px; padding:2px 8px; font-weight:700; background:var(--ok); color:#155443; }
+  .painelEst button.estL .noC.zero { background:transparent; color:var(--muted); font-weight:400; }
+  .painelEst button.estL.vazio { background:#f3f1ec; }
+  .painelEst button.estL.vazio .nmE, .painelEst button.estL.vazio .pr { color:var(--muted); }
+  .semStk { color:var(--sai); }
+  .voltarA { background:none; border:0; color:var(--acc); text-decoration:underline; font-size:.92rem; padding:6px 0; cursor:pointer; }
+  .stkTag { display:inline-block; font-size:.75rem; background:var(--ok); color:#155443; border-radius:999px; padding:1px 8px; margin-left:4px; }
+  .pq { border:0; border-radius:8px; padding:8px 10px; font-weight:600; font-size:.85rem; cursor:pointer; }
+  .pq.leva { background:var(--leva-bg); color:var(--leva); } .pq.ent { background:var(--ok); color:#155443; }
+  .tot3 { display:grid; grid-template-columns:1fr 1fr; gap:6px; color:var(--muted); font-size:.9rem; }
+  .tot3 b { color:var(--ink); }
+  .saldo { margin:10px 0 4px; font-size:1.6rem; font-weight:800; }
+  .saldo small { display:block; font-size:.85rem; font-weight:600; color:var(--muted); }
+  .saldo.pagar { color:var(--leva); } .saldo.credito { color:var(--acc); }
+  .aviso { background:#fff6db; color:#7a5a00; border-radius:10px; padding:8px 10px; font-size:.88rem; margin:8px 0; }
+  #hist { list-style:none; padding:0; margin:0; }
+  #hist li { padding:10px 0; border-top:1px solid var(--line); font-size:.92rem; }
+  #hist li:first-child { border-top:0; }
+  #hist .l1 { display:flex; justify-content:space-between; gap:8px; }
+  #hist .anulado { opacity:.55; text-decoration:line-through; }
+  #hist small { color:var(--muted); display:block; margin-top:2px; }
+  .link.vermelho { color:var(--sai); }
+  .talao-box { background:var(--bg); border-radius:12px; padding:10px 12px; margin:6px 0 14px; }
+  .talao-box .linha { display:flex; gap:8px; }
+  .talao-box .linha input { margin-top:0; }
+  .talao-box .linha .btn { width:auto; padding:10px 14px; }
+  .chk { display:flex; align-items:center; gap:8px; margin-top:8px; font-size:.85rem; color:var(--muted); }
+  .chk input { width:18px; height:18px; }
+  #talaoLista { list-style:none; padding:0; margin:8px 0 0; }
+  #talaoLista li { background:#fff; border:1px solid var(--line); border-radius:10px; padding:9px 11px; margin-bottom:6px; cursor:pointer; font-size:.92rem; }
+  #talaoLista li.fechado { opacity:.55; cursor:default; }
+  #talaoLista small, #talaoEsc small { color:var(--muted); display:block; }
+  #talaoEsc { background:#fff; border:2px solid var(--acc); border-radius:10px; padding:10px 12px; }
+  #talaoEsc .topo { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+  #talaoEsc .obs { margin-top:6px; padding:6px 8px; border-left:4px solid #f9ab00; background:#fff8e1; font-size:.85rem; white-space:pre-wrap; }
+  .conta { font-size:.9rem; color:var(--muted); margin-top:4px; }
+  .estados { display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin:8px 0 4px; }
+  .est { border:1px solid var(--line); border-radius:10px; padding:8px 10px; background:#fff; cursor:pointer; text-align:left; color:var(--ink); font-size:.9rem; }
+  .est b { font-size:1.1rem; }
+  .est small { display:block; color:var(--muted); }
+  .est.sel { border:2px solid var(--acc); background:var(--ok); }
+  .est.vazio { opacity:.55; }
+  .btn-arranjo { background:#fff6db; color:#7a5a00; width:100%; margin-top:8px; }
+  select.estSel { font:inherit; font-size:.82rem; padding:3px 4px; border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--ink); margin-top:3px; max-width:100%; }
+
+  #msg { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:var(--ink); color:#fff; padding:12px 18px; border-radius:10px; display:none; max-width:90%; text-align:center; z-index:10; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <!-- ===== Entrada ===== -->
+  <section id="ecraEntrada">
+    <h1>👕 Stock de Fardas</h1>
+    <div class="card">
+      <label>O teu nome<input id="nome" type="text" autocomplete="name" placeholder="ex.: Alexandra"></label>
+      <label>Palavra-passe<input id="pw" type="password" autocomplete="current-password"></label>
+      <button id="btnEntrar" class="btn btn-acc" style="margin-top:14px">Entrar</button>
+    </div>
+  </section>
+
+  <!-- ===== App ===== -->
+  <section id="ecraApp" class="hidden">
+    <header><h1>🧾 Atendimento <small style="font-size:.7rem;color:var(--muted);font-weight:400">v1</small></h1><a class="outraApp" href="inventario.html">👕 Inventário</a><button class="sair" id="btnSair">sair</button></header>
+
+    <nav class="tabs">
+      <button data-tab="sai" class="sel">⬆ Saídas</button>
+      <button data-tab="ent">⬇ Entradas</button>
+      <button data-tab="res">🧾 Resumo</button>
+      <button data-tab="fic">📋 Fichas <span id="nFic"></span></button>
+    </nav>
+
+    <span id="nEsp" class="hidden"></span>
+    <!-- Separador: Inventário -->
+    <div id="tabInv" class="hidden">
+      <button id="btnLer" class="btn btn-acc">📷 Ler código QR</button>
+      <div id="leitor"></div>
+      <button id="btnFoto" class="link">Não lê? Tirar uma foto ao QR</button>
+      <input id="foto" type="file" accept="image/*" capture="environment" hidden>
+
+      <input id="pesquisa" type="search" placeholder="Escreve: polo, saia, 8, GIN…" autocomplete="off">
+
+      <div class="filtro-tit">Categoria</div>
+      <div class="chips" id="fCat"></div>
+      <div id="blocoSub" class="hidden"><div class="filtro-tit">Tipo de peça</div><div class="chips" id="fSub"></div></div>
+      <div id="blocoTam" class="hidden"><div class="filtro-tit">Tamanho</div><div class="chips" id="fTam"></div></div>
+
+      <div id="fichaCasa"><div id="ficha" class="card hidden"></div></div>
+
+      <p id="contagem" class="meta"></p>
+      <ul id="resultados"></ul>
+      <p id="carregar" class="meta">A carregar lista…</p>
+      <p class="meta"><a id="linkQR" target="_blank" rel="noopener">🖨 Imprimir etiquetas QR</a></p>
+      <p class="meta" style="margin-top:-6px"><a id="linkPrecario" target="_blank" rel="noopener">💶 Imprimir preçário</a></p>
+      <p class="meta" style="margin-top:-6px"><a id="linkSemTam" target="_blank" rel="noopener">⏳ Imprimir QR sem tamanho (1 folha)</a></p>
+    </div>
+
+    <!-- Separador: Espera -->
+    <div id="tabEsp" class="hidden">
+      <p class="meta" style="margin-top:0">Peças entregues no atendimento que ainda não têm tamanho. Escolhe ou mede o tamanho e carrega em Inventariar: passam para o stock.</p>
+      <ul id="listaEsp"><li class="meta">—</li></ul>
+      <button id="btnEspAtual" class="link">atualizar</button>
+    </div>
+
+    <!-- Separador: Medir -->
+    <div id="tabMed" class="hidden">
+      <div class="card" style="margin-top:0">
+        <div class="filtro-tit" style="margin-top:0">1. O que é?</div>
+        <div class="chips" id="medTipo"></div>
+        <div id="blocoMarca" class="hidden"><div class="filtro-tit">2. Marca / loja</div><div class="chips" id="medMarca"></div></div>
+        <div class="filtro-tit" id="titCm">2. Comprimento (cm)</div>
+        <input id="numCm" type="text" inputmode="decimal" placeholder="0" autocomplete="off">
+        <div id="comoMedir" class="comoMedir hidden"></div>
+        <div id="resMed"></div>
+      </div>
+      <div id="blocoPecasMed" class="card hidden">
+        <div class="sec-tit">Peças com este tamanho <small id="nPecasMed"></small></div>
+        <input id="filtroMed" type="search" placeholder="Filtra: polo, saia, bibe…" autocomplete="off" style="margin-top:0">
+        <ul id="pecasMed"></ul>
+      </div>
+      <p class="meta" id="semMedidas"></p>
+      <div class="acoes" style="margin-top:4px">
+        <button id="btnTabelas" class="btn" style="background:#ebe7df">📋 Ver tabelas</button>
+        <button id="btnTabelasPag" class="btn" style="background:#ebe7df">↗ Página à parte</button>
+      </div>
+      <div id="tabelasMed" class="card hidden"></div>
+      <button id="btnPrecos" class="btn" style="background:#ebe7df;width:100%;margin-top:10px">💶 Ver preços</button>
+      <div id="tabelaPrecos" class="card hidden"></div>
+    </div>
+
+    <!-- Separador: Atendimento -->
+    <div id="tabAt" class="hidden">
+      <div class="modoAt hidden" id="modoAt">
+        <button data-m="leva" class="leva sel">⬆ Saídas</button>
+        <button data-m="entrega" class="ent">⬇ Entradas</button>
+      </div>
+      <div id="zonaFichas" class="so-ent card" style="margin-top:0">
+        <div class="sec-tit" style="margin-top:0">📋 Fichas dos pais <small id="nFichasE"></small></div>
+        <input id="fichaQ" type="search" placeholder="Nome, email ou código (F-1234)" autocomplete="off" style="margin-top:0">
+        <div id="fichasLista"></div>
+        <div id="verif"></div>
+        <p class="meta" style="margin:6px 0 0">Também podes ler o QR da ficha com o botão abaixo.</p>
+      </div>
+      <button id="scanA" class="btn btn-leva">📷 Ler QR da peça que sai</button>
+      <div id="leitorA" style="margin-top:10px;border-radius:12px;overflow:hidden"></div>
+      <input id="pesqA" type="search" placeholder="Saídas: procura polo 8, saia 10…" autocomplete="off">
+      <div class="filtro-tit">Categoria</div>
+      <div class="chips" id="fCatA"></div>
+      <div id="blocoSubA" class="hidden"><div class="filtro-tit">Tipo de peça</div><div class="chips" id="fSubA"></div></div>
+      <div id="blocoTamA" class="hidden"><div class="filtro-tit">Tamanho</div><div class="chips" id="fTamA"></div></div>
+      <p id="contA" class="meta"></p>
+      <ul id="sugA"></ul>
+
+      <div class="card">
+        <section class="bloco leva so-sai">
+          <div class="bloco-tit">⬆ Saídas <span><small id="nLeva"></small> <b id="tLevaB"></b></span></div>
+          <ul id="lLeva" class="linhas"></ul>
+        </section>
+        <section class="bloco liv so-sai">
+          <div class="bloco-tit">📚 Livros que saem <span><small id="nLivS"></small></span></div>
+          <ul id="lLivS" class="linhas"></ul>
+        </section>
+        <section class="bloco ent so-ent">
+          <div class="bloco-tit">⬇ Entradas <span><small id="nEnt"></small> <b id="tEntB"></b></span></div>
+          <p class="meta" style="margin:6px 0 0">Com tamanho: entra logo no stock. Sem tamanho: vai para a sala de espera ⏳.</p>
+          <ul id="lEnt" class="linhas"></ul>
+        </section>
+        <section class="bloco liv so-ent">
+          <div class="bloco-tit">📚 Livros que entram <span><small id="nLivE"></small></span></div>
+          <ul id="lLivE" class="linhas"></ul>
+        </section>
+        <p class="meta" style="margin:4px 0 0">O talão, os totais e o botão Confirmar estão no <b>Resumo</b>.</p>
+      </div>
+    </div>
+
+    <!-- Separador: Resumo -->
+    <div id="tabRes" class="hidden">
+      <div class="card" style="margin-top:0">
+        <div class="sec-tit" style="margin-top:0">🧾 Este atendimento</div>
+        <div id="fichaInfo"></div>
+        <ul id="resumoLista" class="resumo" style="list-style:none;padding:0;margin:0 0 12px"></ul>
+
+        <div class="sec-tit">🎟 Talão <small>opcional</small></div>
+        <div class="talao-box">
+          <div id="talaoEsc" class="hidden"></div>
+          <div id="talaoPesq">
+            <div class="linha">
+              <input id="talaoQ" type="search" placeholder="Nº do talão, nome ou telemóvel" autocomplete="off">
+              <button id="btnTalao" class="btn btn-acc">Procurar</button>
+            </div>
+            <label class="chk"><input type="checkbox" id="talaoFech"> incluir talões esgotados ou fechados</label>
+            <a id="linkForm" class="hidden" target="_blank" rel="noopener" style="display:inline-block;font-size:.85rem;color:var(--acc);margin-top:6px">➕ Novo talão (formulário)</a>
+            <ul id="talaoLista"></ul>
+          </div>
+        </div>
+
+        <div class="tot3"><span>Saídas: <b id="tLeva">0,00 €</b></span><span>Entradas: <b id="tEnt">0,00 €</b></span></div>
+        <div id="saldo" class="saldo"><small>Total</small>0,00 €</div>
+        <div id="avisoAt" class="aviso hidden"></div>
+
+        <div class="acoes">
+          <button id="btnLimparAt" class="btn" style="background:#ebe7df">Limpar</button>
+          <button id="btnCopiarAt" class="btn" style="background:#ebe7df">Copiar resumo</button>
+        </div>
+        <button id="btnConfirmar" class="btn btn-acc" style="margin-top:10px">✔ Confirmar atendimento</button>
+        <p class="meta" style="margin-top:8px">Enquanto não confirmares, é só uma simulação: o stock não muda.</p>
+      </div>
+
+      <div class="card">
+        <div class="sec-tit">Atendimentos de hoje <button id="btnHist" class="link" style="padding:0">atualizar</button></div>
+        <ul id="hist"><li class="meta">—</li></ul>
+      </div>
+    </div>
+
+    <!-- Separador: Fichas dos pais -->
+    <div id="tabFic" class="hidden">
+      <div class="card" style="margin-top:0">
+        <div class="sec-tit" style="margin-top:0">🔗 Ficha para os pais</div>
+        <p class="meta" style="margin:0">Os pais preenchem no telemóvel. Também serve para passar ao balcão uma ficha em papel.</p>
+        <div id="qrFicha"></div>
+        <div class="acoes"><a id="linkFicha" class="btn" target="_blank" rel="noopener" style="background:#ebe7df;text-align:center;text-decoration:none;color:var(--ink)">Abrir a ficha</a>
+          <button id="btnCopiarFicha" class="btn" style="background:#ebe7df">Copiar link</button></div>
+      </div>
+      <div class="card">
+        <div class="sec-tit" style="margin-top:0">📋 Fichas por usar <small id="nFichasT"></small> <button id="btnFicAtual" class="link" style="padding:0">atualizar</button></div>
+        <input id="ficQ" type="search" placeholder="Nome, email ou código" autocomplete="off" style="margin-top:0">
+        <div id="ficLista"><p class="meta">—</p></div>
+        <p class="meta">Cada ficha é apagada quando o atendimento em que é usada fica gravado, ou ao fim de 14 dias.</p>
+      </div>
+    </div>
+  </section>
+</main>
+<div id="msg"></div>
+
+<script>
+let MEDIDAS = [];
+let LIVROS = [{ sub: 'PNL', preco: 3 }, { sub: 'EMRC', preco: 3 }, { sub: 'Catequese', preco: 3 }];
+const CARRO_LIV = { leva: {}, entrega: {} };   // { 'Livro': 2 }
+let ESTADOS = [{ chave: 'Boa', nome: 'Boa (sem arranjos)', pct: 1 }], estSel = 'Boa';
+let ARTIGOS = [], scanner = null, scanBtn = null, scanTxt = '', atual = null, qtd = 1, motivo = '', AVISO_PRECOS = '';
+const filtro = { cat: '', sub: '', tam: [] };   // tam: vários tamanhos ao mesmo tempo (ex.: 8 e 10)
+const MOTIVOS = ['Doação', 'Troca', 'Venda', 'Acerto'];
+let SESSAO = { nome: '', pw: '' };
+
+/* ---------- Ligação ao Apps Script ---------- */
+async function api(acao, dados, extra) {
+  let resp;
+  if (dados) {
+    // text/plain evita o pedido prévio (CORS) que o Apps Script não aceita
+    resp = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(Object.assign({ acao, pw: SESSAO.pw, quem: SESSAO.nome }, dados)) });
+  } else {
+    resp = await fetch(API_URL + '?acao=' + acao + '&pw=' + encodeURIComponent(SESSAO.pw) +
+      Object.entries(extra || {}).map(([k, v]) => '&' + k + '=' + encodeURIComponent(v)).join(''));
+  }
+  const j = await resp.json();
+  if (!j.ok) throw new Error(j.erro || 'Erro desconhecido');
+  return j;
+}
+
+/* ---------- Entrada ---------- */
+function guardar(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function lerGuardado(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+
+document.getElementById('nome').value = lerGuardado('fardasv1_nome');
+document.getElementById('btnEntrar').onclick = entrar;
+document.getElementById('pw').addEventListener('keydown', e => { if (e.key === 'Enter') entrar(); });
+document.getElementById('btnSair').onclick = () => { guardar('fardasv1_pw', ''); try { localStorage.removeItem('fardasv1_rascunho'); localStorage.removeItem('fardasv1_estado'); } catch (e) {} location.reload(); };
+
+async function entrar(automatico) {
+  const nome = document.getElementById('nome').value.trim() || lerGuardado('fardasv1_nome');
+  // Sem nada escrito no campo, tenta a palavra-passe já guardada neste aparelho
+  const pw = automatico === true ? lerGuardado('fardasv1_pw') : (document.getElementById('pw').value || lerGuardado('fardasv1_pw'));
+  if (!nome) { toast('Escreve o teu nome.'); return; }
+  if (!pw) return;
+  SESSAO = { nome, pw };
+  const b = document.getElementById('btnEntrar');
+  b.disabled = true; b.textContent = 'A entrar…';
+  try {
+    const d = await api('dados');
+    guardar('fardasv1_nome', nome); guardar('fardasv1_pw', pw);
+    ARTIGOS = d.artigos;
+    AVISO_PRECOS = d.avisoPrecos || '';
+    const lf = document.getElementById('linkForm');
+    if (d.formTaloes) { lf.href = d.formTaloes; lf.classList.remove('hidden'); } else lf.classList.add('hidden');
+    if (d.estados && d.estados.length) ESTADOS = d.estados;
+    MEDIDAS = d.medidas || [];
+    LIVROS = d.livros || LIVROS;
+    contarEspera();
+    ARTIGOS.forEach(normalizarArtigo);
+    document.getElementById('carregar').textContent = ARTIGOS.length + ' artigos na lista · ' + nome;
+    document.getElementById('ecraEntrada').classList.add('hidden');
+    document.getElementById('ecraApp').classList.remove('hidden');
+    desenharFiltros(); filtrar();
+    // Se o QR tiver o link da página com ?id=..., abre logo a ficha
+    const idLink = new URLSearchParams(location.search).get('id');
+    await irPara('sai');
+    if (idLink) abrirPorCodigo(idLink); else restaurarEstado();
+  } catch (e) {
+    const pwErrada = /palavra-passe/i.test(e.message || '');
+    if (pwErrada) guardar('fardasv1_pw', '');      // só esquece a palavra-passe se estiver mesmo errada
+    if (pwErrada || automatico !== true) toast(pwErrada ? e.message : 'Sem ligação ao servidor. Verifica a rede e toca em Entrar (não precisas de escrever a palavra-passe).');
+    else toast('Sem ligação. Toca em Entrar quando houver rede.');
+  } finally {
+    b.disabled = false; b.textContent = 'Entrar';
+  }
+}
+if (lerGuardado('fardasv1_pw')) entrar(true);
+// Se a rede voltar e ainda estivermos no ecrã de entrada, tenta outra vez sozinha
+window.addEventListener('online', () => {
+  if (lerGuardado('fardasv1_pw') && !document.getElementById('ecraEntrada').classList.contains('hidden')) entrar(true);
+});
+
+/* ---------- Separadores ---------- */
+const SEPARADORES = { sai: 'tabAt', ent: 'tabAt', res: 'tabRes', fic: 'tabFic' };
+let TAB_ATUAL = 'sai';
+async function irPara(tab) {
+  TAB_ATUAL = tab;
+  document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('sel', x.dataset.tab === tab));
+  await pararLeitor();
+  const vis = SEPARADORES[tab];
+  [...new Set(Object.values(SEPARADORES))].forEach(id => document.getElementById(id).classList.toggle('hidden', id !== vis));
+  if (tab === 'sai' || tab === 'ent') { pesqA.value = ''; mudarModoAt(tab === 'sai' ? 'leva' : 'entrega'); desenharAt(); if (tab === 'ent') carregarFichas(); }
+  else if (tab === 'res') { desenharAt(); carregarHist(); }
+  else if (tab === 'fic') carregarFichas();
+  else if (tab === 'med') desenharMedir();
+  else if (tab === 'esp') carregarEspera();
+  else filtrar();
+}
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => irPara(b.dataset.tab));
+document.getElementById('linkQR').href = API_URL + '?action=folhaqr';
+document.getElementById('linkPrecario').href = API_URL + '?action=precario';
+document.getElementById('linkSemTam').href = API_URL + '?action=qrsemtam';
+
+/* ---------- Leitura QR em direto ---------- */
+/* Um só leitor para os dois separadores: elId = onde aparece a câmara, aoLer = o que fazer com o texto */
+const LEITURA_MS = 800;   // tempo (ms) com o código parado no quadrado antes de o aceitar — aumentar se ainda for rápido
+async function iniciarLeitor(elId, btn, aoLer) {
+  if (scanner) { const mesmo = scanBtn === btn; await pararLeitor(); if (mesmo) return; }
+  scanner = new Html5Qrcode(elId, { verbose: false,
+    formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true } });
+  scanBtn = btn; scanTxt = btn.textContent; btn.textContent = '✖ Parar';
+  // Só aceita quando vê o MESMO código durante LEITURA_MS seguidos (dá tempo de centrar numa folha com vários QR)
+  let visto = '', desde = 0, ultimo = 0;
+  try {
+    await scanner.start({ facingMode: 'environment' },
+      { fps: 10, qrbox: (w, h) => { const s = Math.min(w, h) * 0.5; return { width: s, height: s }; } },
+      async txt => {
+        const agora = Date.now();
+        if (txt !== visto || agora - ultimo > 400) { visto = txt; desde = agora; }   // código novo ou perdeu-o de vista → recomeça
+        ultimo = agora;
+        if (agora - desde < LEITURA_MS) return;
+        visto = '';
+        if (navigator.vibrate) navigator.vibrate(80);
+        await pararLeitor();
+        aoLer(txt);
+      });
+  } catch (e) {
+    await pararLeitor();
+    toast('Não foi possível abrir a câmara. Verifica a autorização da câmara para este site.');
+  }
+}
+async function pararLeitor() {
+  if (scanner) { try { await scanner.stop(); } catch (e) {} try { scanner.clear(); } catch (e) {} scanner = null; }
+  if (scanBtn) { scanBtn.textContent = scanTxt; scanBtn = null; }
+}
+document.getElementById('btnLer').onclick = e => iniciarLeitor('leitor', e.currentTarget, abrirPorCodigo);
+
+/* ---------- Leitura por foto (reserva) ---------- */
+const foto = document.getElementById('foto');
+document.getElementById('btnFoto').onclick = async () => { await pararLeitor(); foto.value = ''; foto.click(); };
+foto.addEventListener('change', async () => {
+  const f = foto.files && foto.files[0];
+  if (!f) return;
+  toast('A ler o código…');
+  let txt = '';
+  if ('BarcodeDetector' in window) {
+    try {
+      const r = await new BarcodeDetector({ formats: ['qr_code'] }).detect(await createImageBitmap(f));
+      txt = r[0] && r[0].rawValue || '';
+    } catch (e) {}
+  }
+  if (!txt) {
+    try {
+      const l = new Html5Qrcode('leitor', { verbose: false, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] });
+      txt = String(await l.scanFile(f, false));
+      l.clear();
+    } catch (e) {}
+  }
+  if (txt) abrirPorCodigo(txt); else toast('Não consegui ler o QR. Tenta outra foto, ou escreve na pesquisa.');
+});
+
+/* O QR pode ter só o código (ex.: UNI-POLO-MC-8) ou um link com ?id=UNI-POLO-MC-8 */
+function artigoDoQR(txt) {
+  let id = String(txt).trim();
+  try { const u = new URL(id); id = u.searchParams.get('id') || id; } catch (e) {}
+  const a = ARTIGOS.find(x => x.id.toLowerCase() === id.toLowerCase());
+  if (!a) toast('Este código não está na lista: ' + id);
+  return a;
+}
+/* QR de peça sem tamanho (catálogo de QR): o texto é "SEMTAM:Tipo" → Atendimento › Entradas, janelinha dos estados */
+function tipoSemTamDoQR(txt) {
+  const m = String(txt).trim().match(/^SEMTAM:(.+)$/i);
+  if (!m) return null;
+  const t = tipoInfo(m[1].trim()) || tiposDePeca().find(x => semAcentos(x.tipo) === semAcentos(m[1].trim()));
+  if (!t) { toast('Tipo de peça desconhecido: ' + m[1]); return false; }
+  if (!t.vende) { toast(t.tipo + ': não se vende (não entra no atendimento).'); return false; }
+  return t;
+}
+async function abrirSemTamanho(t) {
+  if (TAB_ATUAL !== 'ent') await irPara('ent');
+  filtroA.cat = t.grupo; filtroA.sub = t.tipo; filtroA.tam = [SEM_TAM]; pesqA.value = '';
+  ABERTO_A = 'esp:' + t.tipo; desenharFiltrosA(); listarA();
+  toast('⬇ Entrada sem tamanho: ' + t.tipo + ' — escolhe o estado');
+}
+function abrirPorCodigo(txt) {
+  if (/^FICHA:/i.test(String(txt).trim())) { abrirFicha(String(txt).trim().slice(6).trim()); return; }
+  const t = tipoSemTamDoQR(txt);
+  if (t) { abrirSemTamanho(t); return; }
+  if (t === false) return;
+  const a = artigoDoQR(txt); if (a) mostrar(a);
+}
+
+/* ---------- Filtros (categoria → tipo → tamanho) ---------- */
+const ORDEM_TAM = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+function chaveTam(t) {
+  const n = parseFloat(String(t).replace(',', '.'));
+  if (!isNaN(n)) return [0, n, ''];
+  const i = ORDEM_TAM.indexOf(String(t).toUpperCase());
+  return i >= 0 ? [1, i, ''] : [2, 0, String(t)];
+}
+function ordTam(a, b) {
+  const x = chaveTam(a), y = chaveTam(b);
+  return x[0] - y[0] || x[1] - y[1] || x[2].localeCompare(y[2], 'pt');
+}
+function unicos(lista) { return [...new Set(lista.filter(Boolean))]; }
+
+function desenharFiltros() {
+  const cats = unicos(ARTIGOS.map(a => a.categoria));
+  const doCat = ARTIGOS.filter(a => !filtro.cat || a.categoria === filtro.cat);
+  const subs = filtro.cat ? unicos(doCat.map(a => a.subcategoria)) : [];
+  if (!subs.includes(filtro.sub)) filtro.sub = '';
+  const doSub = doCat.filter(a => !filtro.sub || a.subcategoria === filtro.sub);
+  const tams = unicos(doSub.map(a => a.tamanho)).sort(ordTam);
+  filtro.tam = filtro.tam.filter(t => tams.includes(t));
+
+  chips('fCat', cats, 'cat', 'Todas');
+  chips('fSub', subs, 'sub', 'Todos');
+  chips('fTam', tams, 'tam', 'Todos');
+  document.getElementById('blocoSub').classList.toggle('hidden', !subs.length);
+  document.getElementById('blocoTam').classList.toggle('hidden', !tams.length || (!filtro.cat && !filtro.sub));
+}
+
+function chips(idEl, valores, chave, rotuloTodos) {
+  const el = document.getElementById(idEl);
+  el.innerHTML = '';
+  [''].concat(valores).forEach(v => {
+    const b = document.createElement('button');
+    const sel = chave === 'tam' ? (v === '' ? !filtro.tam.length : filtro.tam.includes(v)) : filtro[chave] === v;
+    b.className = 'chip' + (sel ? ' sel' : '');
+    b.textContent = v || rotuloTodos;
+    b.onclick = () => {
+      if (chave === 'tam') {        // tamanhos: liga/desliga cada um; "Todos" limpa
+        filtro.tam = v === '' ? [] : filtro.tam.includes(v) ? filtro.tam.filter(t => t !== v) : filtro.tam.concat(v);
+      } else {
+        filtro[chave] = v;
+        if (chave === 'cat') { filtro.sub = ''; filtro.tam = []; }   // muda de categoria → limpa tipo e tamanho
+        document.getElementById('pesquisa').value = '';              // o que estava escrito deixava de bater certo
+      }
+      desenharFiltros(); filtrar();
+    };
+    el.appendChild(b);
+  });
+}
+
+/* ---------- Pesquisa / lista ---------- */
+const campo = document.getElementById('pesquisa');
+campo.addEventListener('input', filtrar);
+
+function semAcentos(s) { return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+function nomeArtigo(a) { return a.descricao || a.subcategoria || a.id; }
+
+function filtrar() {
+  const q = semAcentos(campo.value.trim());
+  const palavras = q ? q.split(/\s+/) : [];
+  const ul = document.getElementById('resultados'), cont = document.getElementById('contagem');
+  const fichaEl = document.getElementById('ficha');
+  fichaNaLista = fichaEl.parentNode === ul && !fichaEl.classList.contains('hidden');
+  document.getElementById('fichaCasa').appendChild(fichaEl);   // tira a ficha da lista antes de a refazer
+  ul.innerHTML = '';
+  if (!palavras.length && !filtro.cat && !filtro.sub && !filtro.tam.length) {
+    cont.textContent = 'Lê um QR, escreve na pesquisa ou escolhe uma categoria.';
+    return;
+  }
+  const res = ARTIGOS.filter(a =>
+    (!filtro.cat || a.categoria === filtro.cat) &&
+    (!filtro.sub || a.subcategoria === filtro.sub) &&
+    (!filtro.tam.length || filtro.tam.includes(a.tamanho)) &&
+    palavras.every(p => semAcentos([a.id, a.categoria, a.subcategoria, a.tamanho, a.descricao].join(' ')).includes(p)));
+  const total = res.reduce((s, a) => s + a.stock, 0);
+  cont.textContent = res.length + (res.length === 1 ? ' artigo' : ' artigos') + ' · ' + total + ' peças em stock';
+
+  res.slice(0, 80).forEach(a => {
+    const li = document.createElement('li');
+    li.innerHTML = '<div>' + esc(nomeArtigo(a)) + ' <b>· ' + esc(a.tamanho) + '</b><small>' +
+      esc([a.categoria, a.subcategoria, a.id].filter(Boolean).join(' · ')) + '</small></div>' +
+      '<span class="badge' + (a.stock ? '' : ' zero') + '">' + a.stock + '</span>';
+    li.dataset.id = a.id;
+    li.onclick = () => {
+      const f = document.getElementById('ficha');
+      if (atual === a && !f.classList.contains('hidden') && f.parentNode === ul) { fecharFicha(); return; }   // tocar outra vez fecha
+      mostrar(a);
+    };
+    ul.appendChild(li);
+  });
+  if (res.length > 80) cont.textContent += ' (a mostrar 80 — afina a pesquisa)';
+  colocarFicha();
+}
+
+/* A ficha abre logo por baixo da peça tocada (e fecha a anterior). Se a peça não estiver na lista
+   (ex.: aberta por QR), fica no sítio de sempre, em cima. */
+let fichaNaLista = false;
+function colocarFicha() {
+  const f = document.getElementById('ficha'), ul = document.getElementById('resultados');
+  ul.querySelectorAll('li.aberto').forEach(l => l.classList.remove('aberto'));
+  if (!atual || f.classList.contains('hidden')) return;
+  const li = [...ul.children].find(l => l.dataset && l.dataset.id === atual.id);
+  if (li) { li.classList.add('aberto'); ul.insertBefore(f, li.nextSibling); }
+  else if (fichaNaLista) fecharFicha();          // a peça saiu da lista (mudou o filtro) → fecha a ficha
+  else document.getElementById('fichaCasa').appendChild(f);
+  fichaNaLista = false;
+}
+function fecharFicha() {
+  document.getElementById('ficha').classList.add('hidden');
+  document.getElementById('fichaCasa').appendChild(document.getElementById('ficha'));
+  document.querySelectorAll('#resultados li.aberto').forEach(l => l.classList.remove('aberto'));
+}
+
+/* ---------- Ficha do artigo ---------- */
+/* Garante est (stock por estado) e precos (preço por estado) mesmo com o Apps Script antigo */
+function normalizarArtigo(a) {
+  if (!a.est) a.est = { Boa: a.stock };
+  ESTADOS.forEach(e => { if (a.est[e.chave] == null) a.est[e.chave] = 0; });
+  if (!a.precos) { a.precos = {}; ESTADOS.forEach(e => a.precos[e.chave] = a.preco); }
+  a.stock = ESTADOS.reduce((s, e) => s + (a.est[e.chave] || 0), 0);
+}
+// Estados que se aplicam a uma peça/tipo (folha Tipos); sem regra = todos
+const estadosDe = a => {
+  if (!a || !a.estadosOk) return ESTADOS;
+  const l = ESTADOS.filter(e => a.estadosOk.includes(e.chave));
+  return l.length ? l : ESTADOS.filter(e => e.chave === 'Boa');
+};
+const vendiveis = () => ARTIGOS.filter(a => a.vende !== false);
+// Na ficha e no "Leva" mostra também estados desligados que ainda têm peças (para lhes poder dar saída)
+const estadosComStock = a => ESTADOS.filter(e => estadosDe(a).includes(e) || (a.est && (a.est[e.chave] || 0) > 0));
+const nomeEst = k => (ESTADOS.find(e => e.chave === k) || { nome: k }).nome;
+const precoEst = (a, k) => a.precos ? a.precos[k] : a.preco;
+
+function mostrar(a) {
+  atual = a; qtd = 1; motivo = '';
+  if (!estadosDe(a).some(e => e.chave === estSel)) estSel = estadosDe(a)[0].chave;
+  const f = document.getElementById('ficha');
+  f.innerHTML =
+    '<button class="fechar" id="fechar" aria-label="Fechar">✕</button>' +
+    '<div class="cab"><strong>' + esc(nomeArtigo(a)) + ' · tam. ' + esc(a.tamanho) + '</strong></div>' +
+    '<div class="meta">' + esc([a.categoria, a.subcategoria, 'código ' + a.id].filter(Boolean).join(' · ')) + '</div>' +
+    '<div class="grande">Em stock: <b id="stk">' + a.stock + '</b></div>' +
+    '<div class="filtro-tit">Estado — escolhe para a entrada/saída</div><div class="estados" id="estados"></div>' +
+    '<div class="qtd"><button id="menos">−</button><span id="nq">1</span><button id="mais">+</button><span class="meta">peça(s)</span></div>' +
+    '<div class="filtro-tit">Motivo (opcional)</div><div class="chips" id="motivos"></div>' +
+    '<div class="acoes"><button id="btnSai" class="btn btn-sai">− Saída</button><button id="btnEnt" class="btn btn-acc">+ Entrada</button></div>';
+  f.classList.remove('hidden');
+
+  desenharEstadosFicha();
+  const m = document.getElementById('motivos');
+  MOTIVOS.forEach(t => {
+    const b = document.createElement('button');
+    b.className = 'chip'; b.textContent = t;
+    b.onclick = () => {
+      motivo = motivo === t ? '' : t;
+      [...m.children].forEach(c => c.classList.toggle('sel', c.textContent === motivo));
+    };
+    m.appendChild(b);
+  });
+  document.getElementById('fechar').onclick = fecharFicha;
+  document.getElementById('menos').onclick = () => { qtd = Math.max(1, qtd - 1); document.getElementById('nq').textContent = qtd; };
+  document.getElementById('mais').onclick = () => { qtd++; document.getElementById('nq').textContent = qtd; };
+  document.getElementById('btnEnt').onclick = () => movimentar(+1);
+  document.getElementById('btnSai').onclick = () => movimentar(-1);
+  colocarFicha();
+  const li = document.querySelector('#resultados li.aberto');
+  (li || f).scrollIntoView({ behavior: 'smooth', block: li ? 'start' : 'nearest' });
+}
+
+function desenharEstadosFicha() {
+  const a = atual, el = document.getElementById('estados');
+  if (!el) return;
+  el.innerHTML = '';
+  estadosComStock(a).forEach(e => {
+    const b = document.createElement('button');
+    const n = a.est[e.chave] || 0;
+    b.className = 'est' + (estSel === e.chave ? ' sel' : '') + (n ? '' : ' vazio');
+    b.innerHTML = '<b>' + n + '</b> ' + esc(e.nome) +
+      '<small>' + (a.vende === false ? 'não se vende' : precoEst(a, e.chave) != null ? eur(precoEst(a, e.chave)) : 'sem preço') + '</small>';
+    b.onclick = () => { estSel = e.chave; desenharEstadosFicha(); };
+    el.appendChild(b);
+  });
+  document.getElementById('stk').textContent = a.stock;
+
+}
+
+async function movimentar(sinal) {
+  if (sinal > 0 && !estadosDe(atual).some(e => e.chave === estSel)) { toast('Este estado não se aplica a esta peça (folha Tipos). Só dá para dar saída.'); return; }
+  const noEstado = atual.est[estSel] || 0;
+  if (sinal < 0 && qtd > noEstado) { toast('Só há ' + noEstado + ' em "' + nomeEst(estSel) + '".'); return; }
+  const botoes = [document.getElementById('btnEnt'), document.getElementById('btnSai')];
+  botoes.forEach(b => b.disabled = true);
+  try {
+    const r = await api('mover', { id: atual.id, delta: sinal * qtd, motivo, estado: estSel });
+    if (r.stocks) atualizarStocks(r.stocks); else { atual.stock = r.stock; atual.est = { Boa: r.stock }; normalizarArtigo(atual); }
+    desenharEstadosFicha();
+    filtrar();
+    toast('✔ ' + (sinal > 0 ? '+' : '−') + qtd + ' · ' + nomeArtigo(atual) + ' ' + atual.tamanho + ' (' + nomeEst(estSel) + ') → stock ' + atual.stock);
+  } catch (e) {
+    toast('Erro: ' + e.message);
+  } finally {
+    botoes.forEach(b => b.disabled = false);
+  }
+}
+
+/* =====================================================================
+   ATENDIMENTO
+   ===================================================================== */
+// leva/entrega: { 'id|estado': qtd } (peça com tamanho) · espera: { 'Tipo|estado': qtd } (entregue sem tamanho)
+const CARRO = { leva: {}, entrega: {}, espera: {} };
+let MODO_AT = 'leva';
+let ABERTO_A = null;   // peça aberta na lista do atendimento: id do artigo ou 'esp:Tipo' (entrega sem tamanho)
+let idPendente = null;                     // mantém o mesmo código se for preciso repetir o envio
+
+const eur = n => (n || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const art = id => ARTIGOS.find(a => a.id === id);
+const chaveC = (id, est) => id + '|' + est;
+const partes = k => { const i = k.lastIndexOf('|'); return [k.slice(0, i), k.slice(i + 1)]; };
+
+/* Estado por defeito: quem entrega → "Boa" (muda-se na linha se for preciso);
+   quem leva → o primeiro estado que ainda tem peças disponíveis */
+function estadoPorDefeito(tipo, a) {
+  if (tipo === 'entrega') return 'Boa';
+  const e = estadosComStock(a).find(e => disponivel(a, e.chave) > 0);
+  return e ? e.chave : 'Boa';
+}
+function disponivel(a, est) {
+  return (a.est[est] || 0) - (CARRO.leva[chaveC(a.id, est)] || 0);
+}
+
+/* Entregas sem tamanho: só tipo de peça + estado. CARRO.espera = { 'Tipo|Estado': qtd } */
+function tiposDePeca() {
+  const m = {};
+  ARTIGOS.forEach(a => { if (a.subcategoria && !m[a.subcategoria]) m[a.subcategoria] = { tipo: a.subcategoria, grupo: a.categoria, precos: a.precos, preco: a.preco, estadosOk: a.estadosOk, vende: a.vende !== false }; });
+  return Object.values(m).sort((x, y) => x.grupo.localeCompare(y.grupo, 'pt') || x.tipo.localeCompare(y.tipo, 'pt'));
+}
+const tipoInfo = sub => tiposDePeca().find(t => t.tipo === sub);
+const precoTipo = (sub, est) => { const t = tipoInfo(sub); return t ? (t.precos ? t.precos[est] : t.preco) : null; };
+function juntarEnt(sub, n, est) {
+  est = est || 'Boa';
+  const k = chaveC(sub, est);
+  CARRO.espera[k] = Math.max(0, (CARRO.espera[k] || 0) + (n || 1));
+  if (!CARRO.espera[k]) delete CARRO.espera[k];
+  idPendente = null;
+  desenharAt();
+}
+function juntar(tipo, a, n, est) {
+  if (!a) return;
+  est = est || estadoPorDefeito(tipo, a);
+  const k = chaveC(a.id, est);
+  CARRO[tipo][k] = Math.max(0, (CARRO[tipo][k] || 0) + (n || 1));
+  if (!CARRO[tipo][k]) delete CARRO[tipo][k];
+  idPendente = null;
+  desenharAt();
+}
+function mudarEstadoLinha(tipo, k, novo) {
+  const [id] = partes(k), q = CARRO[tipo][k], k2 = chaveC(id, novo);
+  if (k2 === k) return;
+  delete CARRO[tipo][k];
+  CARRO[tipo][k2] = (CARRO[tipo][k2] || 0) + q;
+  idPendente = null;
+  desenharAt();
+}
+
+/* Leva / Entrega: o mesmo QR, pesquisa e filtros servem para os dois, conforme o botão escolhido */
+function mudarModoAt(m) {
+  MODO_AT = m;
+  document.body.dataset.modo = m;
+  document.querySelectorAll('#modoAt button').forEach(b => b.classList.toggle('sel', b.dataset.m === m));
+  const sc = document.getElementById('scanA');
+  sc.className = 'btn ' + (m === 'leva' ? 'btn-leva' : 'btn-ent');
+  if (!scanner) sc.textContent = m === 'leva' ? '📷 Ler QR da peça que sai' : '📷 Ler QR da peça que entra';
+  pesqA.placeholder = m === 'leva' ? 'Saídas: procura polo 8, saia 10…' : 'Entradas: procura polo 8, saia…';
+  ABERTO_A = null; filtroA.tam = filtroA.tam.filter(t => t !== SEM_TAM); desenharFiltrosA(); listarA();
+}
+document.querySelectorAll('#modoAt button').forEach(b => b.onclick = () => mudarModoAt(b.dataset.m));
+// O QR mostra a peça na lista, com os botões dos estados para escolher
+document.getElementById('scanA').onclick = e => iniciarLeitor('leitorA', e.currentTarget, t => {
+  if (/^FICHA:/i.test(String(t).trim())) { abrirFicha(String(t).trim().slice(6).trim()); return; }
+  const st = tipoSemTamDoQR(t);
+  if (st) { abrirSemTamanho(st); return; }
+  if (st === false) return;
+  const a = artigoDoQR(t); if (!a) return;
+  if (a.vende === false) { toast(nomeArtigo(a) + ': não se vende (não entra no atendimento).'); return; }
+  filtroA.cat = filtroA.sub = ''; filtroA.tam = []; desenharFiltrosA();
+  pesqA.value = a.id; ABERTO_A = a.id; listarA();
+  toast((MODO_AT === 'leva' ? '⬆ Saída: ' : '⬇ Entrada: ') + nomeArtigo(a) + ' ' + a.tamanho + ' — escolhe o estado');
+});
+const curtoEst = e => String(e.nome).split(' · ')[0];
+
+/* Pesquisa no atendimento: cada resultado tem botões Leva / Entrega */
+const pesqA = document.getElementById('pesqA');
+/* Filtros do atendimento (iguais aos do Inventário, mas independentes) */
+const filtroA = { cat: '', sub: '', tam: [] };
+const SEM_TAM = 's/ tam.';   // botão dos tamanhos nas Entradas: peça sem tamanho → sala de espera
+function desenharFiltrosA() {
+  const cats = unicos(vendiveis().map(a => a.categoria));
+  const doCat = vendiveis().filter(a => !filtroA.cat || a.categoria === filtroA.cat);
+  const subs = filtroA.cat ? unicos(doCat.map(a => a.subcategoria)) : [];
+  if (!subs.includes(filtroA.sub)) filtroA.sub = '';
+  const doSub = doCat.filter(a => !filtroA.sub || a.subcategoria === filtroA.sub);
+  const tams = unicos(doSub.map(a => a.tamanho)).sort(ordTam);
+  filtroA.tam = filtroA.tam.filter(t => tams.includes(t) || (t === SEM_TAM && MODO_AT === 'entrega'));
+  chipsA('fCatA', cats, 'cat', 'Todas');
+  chipsA('fSubA', subs, 'sub', 'Todos');
+  chipsA('fTamA', MODO_AT === 'entrega' ? tams.concat(SEM_TAM) : tams, 'tam', 'Todos');
+  document.getElementById('blocoSubA').classList.toggle('hidden', !subs.length);
+  document.getElementById('blocoTamA').classList.toggle('hidden', !tams.length || (!filtroA.cat && !filtroA.sub));
+}
+function chipsA(idEl, valores, chave, rotuloTodos) {
+  const el = document.getElementById(idEl);
+  el.innerHTML = '';
+  [''].concat(valores).forEach(v => {
+    const b = document.createElement('button');
+    const sel = chave === 'tam' ? (v === '' ? !filtroA.tam.length : filtroA.tam.includes(v)) : filtroA[chave] === v;
+    b.className = 'chip' + (sel ? ' sel' : '') + (v === SEM_TAM ? ' semTam' : '');
+    b.textContent = v || rotuloTodos;
+    b.onclick = () => {
+      if (chave === 'tam') {
+        filtroA.tam = v === '' ? [] : filtroA.tam.includes(v) ? filtroA.tam.filter(t => t !== v) : filtroA.tam.concat(v);
+        // s/ tam. com um tipo de peça escolhido → abre logo a janelinha "sem tamanho" desse tipo
+        if (v === SEM_TAM && filtroA.tam.includes(SEM_TAM) && filtroA.sub) { ABERTO_A = 'esp:' + filtroA.sub; desenharFiltrosA(); listarA(); return; }
+      }
+      else { filtroA[chave] = v; if (chave === 'cat') { filtroA.sub = ''; filtroA.tam = []; } pesqA.value = ''; }
+      ABERTO_A = null; desenharFiltrosA(); listarA();
+    };
+    el.appendChild(b);
+  });
+}
+
+pesqA.addEventListener('input', () => { ABERTO_A = null; listarA(); });
+function listarA() {
+  const ul = document.getElementById('sugA'), cont = document.getElementById('contA');
+  ul.innerHTML = ''; cont.textContent = '';
+  const palavras = semAcentos(pesqA.value.trim()).split(/\s+/).filter(Boolean);
+  if (!palavras.length && !filtroA.cat && !filtroA.sub && !filtroA.tam.length) return;
+  const ent = MODO_AT === 'entrega';
+  const tamReais = filtroA.tam.filter(t => t !== SEM_TAM), soSemTam = ent && filtroA.tam.includes(SEM_TAM) && !tamReais.length;
+  const res = vendiveis().filter(a =>
+    (!filtroA.cat || a.categoria === filtroA.cat) &&
+    (!filtroA.sub || a.subcategoria === filtroA.sub) &&
+    (!tamReais.length || tamReais.includes(a.tamanho)) &&
+    palavras.every(p => semAcentos([a.id, a.categoria, a.subcategoria, a.tamanho, a.descricao].join(' ')).includes(p)))
+    .sort((x, y) => x.subcategoria.localeCompare(y.subcategoria, 'pt') || ordTam(x.tamanho, y.tamanho));
+  const tiposEsp = ent && (!tamReais.length || filtroA.tam.includes(SEM_TAM)) ? unicos(res.map(a => a.subcategoria)).map(tipoInfo).filter(t => t && t.vende).slice(0, soSemTam ? 20 : 4) : [];
+
+  // Uma peça aberta: só essa, com os estados; as outras escondem-se
+  if (ABERTO_A) {
+    const esp = ABERTO_A.startsWith('esp:') ? tipoInfo(ABERTO_A.slice(4)) : null;
+    const a = esp ? null : art(ABERTO_A);
+    if (esp || a) {
+      const n = (soSemTam ? 0 : res.length) + tiposEsp.length;
+      const v = document.createElement('button'); v.className = 'voltarA';
+      v.textContent = n > 1 ? '← voltar à lista (' + n + ')' : '✕ fechar';
+      v.onclick = () => { ABERTO_A = null; if (n <= 1) pesqA.value = ''; listarA(); };
+      cont.appendChild(v);
+      ul.appendChild(esp ? painelSemTamanho(esp) : painelPeca(a, ent));
+      return;
+    }
+    ABERTO_A = null;
+  }
+
+  tiposEsp.forEach(t => {
+    const li = document.createElement('li'); li.className = 'item espRes';
+    const p = precoTipo(t.tipo, 'Boa');
+    li.innerHTML = '<div class="nm">' + esc(t.tipo) + ' <span class="espTag">⏳ sem tamanho</span><small>Não sabes o tamanho → sala de espera' +
+      (p != null ? ' · ' + eur(p) : '') + '</small></div><span class="seta">›</span>';
+    li.onclick = () => { ABERTO_A = 'esp:' + t.tipo; listarA(); };
+    ul.appendChild(li);
+  });
+  if (soSemTam) { cont.textContent = tiposEsp.length ? 'Sem tamanho → sala de espera' : 'Escolhe o tipo de peça'; return; }
+  cont.textContent = res.length + (res.length === 1 ? ' peça' : ' peças') + (res.length > 60 ? ' (a mostrar 60 — escolhe um tipo ou tamanho)' : '');
+  res.slice(0, 60).forEach(a => {
+    const li = document.createElement('li'); li.className = 'item';
+    const p = precoEst(a, 'Boa'), noC = qtdNoCarro(ent ? 'entrega' : 'leva', a.id);
+    li.innerHTML = '<div class="nm">' + esc(nomeArtigo(a)) + ' <b>· ' + esc(a.tamanho) + '</b>' +
+      (noC ? ' <span class="stkTag">' + noC + ' ' + (ent ? 'a entrar' : 'a sair') + '</span>' : '') +
+      '<small>' + (p != null ? eur(p) : 'sem preço') + ' · stock ' + a.stock +
+      (a.stock !== (a.est.Boa || 0) ? ' (' + (a.est.Boa || 0) + ' boas)' : '') + '</small></div><span class="seta">›</span>';
+    li.onclick = () => { ABERTO_A = a.id; listarA(); };
+    ul.appendChild(li);
+  });
+}
+const qtdNoCarro = (tipo, id) => Object.entries(CARRO[tipo]).reduce((n, [k, q]) => n + (partes(k)[0] === id ? q : 0), 0);
+
+// Janelinha de uma peça: um botão por estado; cada toque junta 1 (dá para juntar C1 e C2 da mesma peça)
+function painelPeca(a, ent) {
+  const tipo = ent ? 'entrega' : 'leva';
+  const li = document.createElement('li'); li.className = 'aberto ' + (ent ? 'ent' : 'leva');
+  li.innerHTML = '<div class="nm"><b>' + (ent ? '⬇ Entrada: ' : '⬆ Saída: ') + '</b>' + esc(nomeArtigo(a)) + ' <b>· ' + esc(a.tamanho) + '</b>' +
+    (ent ? ' <span class="stkTag">entra no stock</span>' : '') + '<small>Toca no estado (cada toque junta 1). As quantidades acertam-se em baixo.</small></div>';
+  const box = document.createElement('div'); box.className = 'painelEst';
+  (ent ? estadosDe(a) : estadosComStock(a)).forEach(e => {
+    const p = precoEst(a, e.chave), livres = disponivel(a, e.chave), q = CARRO[tipo][chaveC(a.id, e.chave)] || 0;
+    const b = document.createElement('button'); b.className = 'estL';
+    b.innerHTML = '<span class="noC' + (q ? '' : ' zero') + '">' + (q ? q + '×' : '+') + '</span>' +
+      '<span class="nmE">' + esc(e.nome) + '<small>' + (ent ? 'em stock: ' + (a.est[e.chave] || 0) : livres > 0 ? 'disponíveis: ' + livres : '<span class="semStk">' + (q ? 'já estão todas nas saídas' : 'sem stock registado') + ' — conta só para as contas</span>') + '</small></span>' +
+      '<span class="pr">' + (p != null ? eur(p) : '—') + '</span>';
+    if (!ent && livres <= 0) b.classList.add('vazio');
+    b.onclick = () => { juntar(tipo, a, 1, e.chave); toast((ent ? '⬇ ' : '⬆ ') + nomeArtigo(a) + ' ' + a.tamanho + ' · ' + curtoEst(e)); listarA(); };
+    box.appendChild(b);
+  });
+  li.appendChild(box);
+  return li;
+}
+function painelSemTamanho(t) {
+  const li = document.createElement('li'); li.className = 'aberto ent';
+  li.innerHTML = '<div class="nm"><b>⬇ Entrada: </b>' + esc(t.tipo) + ' <span class="espTag">⏳ sem tamanho</span>' +
+    '<small>Vai para a sala de espera e é inventariada depois. Toca no estado (cada toque junta 1).</small></div>';
+  const box = document.createElement('div'); box.className = 'painelEst';
+  estadosDe(t).forEach(e => {
+    const p = precoTipo(t.tipo, e.chave), q = CARRO.espera[chaveC(t.tipo, e.chave)] || 0;
+    const b = document.createElement('button'); b.className = 'estL';
+    b.innerHTML = '<span class="noC' + (q ? '' : ' zero') + '">' + (q ? q + '×' : '+') + '</span><span class="nmE">' + esc(e.nome) + '</span>' +
+      '<span class="pr">' + (p != null ? eur(p) : '—') + '</span>';
+    b.onclick = () => { juntarEnt(t.tipo, 1, e.chave); toast('⬇ ' + t.tipo + ' sem tamanho · ' + curtoEst(e)); listarA(); };
+    box.appendChild(b);
+  });
+  li.appendChild(box);
+  return li;
+}
+
+/* ---------- Talão (mesmas regras da app de descontos) ---------- */
+let TALAO = null, TALOES = [];
+const r2 = n => Math.round(n * 100) / 100;
+
+async function procurarTalao() {
+  const q = document.getElementById('talaoQ').value.trim();
+  const ul = document.getElementById('talaoLista');
+  if (!q) return;
+  ul.innerHTML = '<li class="meta" style="cursor:default">A procurar…</li>';
+  try {
+    const r = await api('taloes', null, { q, fechados: document.getElementById('talaoFech').checked ? '1' : '0' });
+    TALOES = r.taloes;
+    if (!TALOES.length) {
+      ul.innerHTML = '<li class="meta" style="cursor:default">Sem resultados' +
+        (document.getElementById('talaoFech').checked ? '.' : ' (experimenta incluir esgotados/fechados).') + '</li>';
+      return;
+    }
+    if (TALOES.length === 1 && !TALOES[0].fechado) { escolherTalao(TALOES[0]); return; }
+    ul.innerHTML = '';
+    TALOES.forEach(t => {
+      const li = document.createElement('li');
+      if (t.fechado) li.className = 'fechado';
+      li.innerHTML = 'Nº <b>' + esc(t.canhao) + '</b>' + (t.livro ? ' · Canhão ' + esc(t.livro) : '') + ' · <b>' + esc(t.encarregado) + '</b>' + extrasTalao(t) +
+        '<small>Saldo: <b>' + eur(t.saldo) + '</b>' + (t.fechado ? ' · fechado' : '') +
+        ((t.observacoes || t.historico.length) ? ' · 📝' : '') + '</small>';
+      if (!t.fechado) li.onclick = () => escolherTalao(t);
+      ul.appendChild(li);
+    });
+  } catch (e) { ul.innerHTML = '<li class="meta" style="cursor:default">Erro: ' + esc(e.message) + '</li>'; }
+}
+// Na lista: 📱 telemóvel e 🧒 aluno (nome ou nº) só aparecem como emoji; tocar mostra/esconde o dado (não escolhe o talão)
+function extrasTalao(t) {
+  const x = [];
+  if (String(t.telemovel || '').trim()) x.push(['📱', 'Telemóvel', t.telemovel]);
+  if (String(t.aluno || '').trim()) x.push(['🧒', 'Aluno', t.aluno]);
+  return x.map(([e, nome, v]) => ' <button type="button" class="extraT" title="' + nome + '" data-v="' + esc(String(v).trim()) + '">' + e + '</button>').join('');
+}
+document.addEventListener('click', ev => {
+  const b = ev.target.closest && ev.target.closest('.extraT');
+  if (!b) return;
+  ev.stopPropagation(); ev.preventDefault();
+  const aberto = b.classList.toggle('aberto');
+  b.textContent = aberto ? b.textContent.slice(0, 2) + ' ' + b.dataset.v : b.textContent.slice(0, 2);
+}, true);
+function nomeTalao(t) { return '<b>' + esc(t.encarregado) + '</b>' + (t.aluno ? ' (' + esc(t.aluno) + ')' : ''); }
+
+function escolherTalao(t) {
+  TALAO = t; idPendente = null;
+  const box = document.getElementById('talaoEsc');
+  box.innerHTML = '<div class="topo"><div>Nº <b>' + esc(t.canhao) + '</b>' + (t.livro ? ' · Canhão ' + esc(t.livro) : '') +
+      '<br>' + nomeTalao(t) + '<small>Saldo atual: <b>' + eur(t.saldo) + '</b> (crédito ' + eur(t.credito) +
+      (t.trocas ? ' + trocas ' + eur(t.trocas) : '') + ' − descontado ' + eur(t.descontado) + ')</small></div>' +
+      '<button class="tira" id="tiraTalao" title="Tirar o talão">✕</button></div>' +
+    ((t.observacoes || t.historico.length)
+      ? '<div class="obs"><b>Observações:</b>' + (t.observacoes ? '\nTalão: ' + esc(t.observacoes) : '') +
+        t.historico.map(h => '\n' + esc(h)).join('') + '</div>' : '');
+  box.classList.remove('hidden');
+  document.getElementById('talaoPesq').classList.add('hidden');
+  document.getElementById('tiraTalao').onclick = tirarTalao;
+  desenharAt();
+}
+function tirarTalao() {
+  TALAO = null; idPendente = null;
+  document.getElementById('talaoEsc').classList.add('hidden');
+  document.getElementById('talaoPesq').classList.remove('hidden');
+  document.getElementById('talaoLista').innerHTML = '';
+  document.getElementById('talaoQ').value = '';
+  desenharAt();
+}
+document.getElementById('btnTalao').onclick = procurarTalao;
+document.getElementById('talaoQ').addEventListener('keydown', e => { if (e.key === 'Enter') procurarTalao(); });
+
+/* Com talão: usa o saldo (+ o que entrega) até onde chegar; o resto paga-se */
+function contasTalao(c) {
+  if (!TALAO) return null;
+  const disp = r2(TALAO.saldo + c.tE);
+  const usado = r2(Math.min(c.tL, disp));
+  return { disp, usado, pagar: r2(c.tL - usado), fica: r2(disp - usado) };
+}
+
+function contas() {
+  let tL = 0, tE = 0, nL = 0, nE = 0, semPreco = 0, falta = [];
+  Object.entries(CARRO.leva).forEach(([k, q]) => {
+    const [id, est] = partes(k), a = art(id); if (!a) return;
+    const p = precoEst(a, est);
+    nL += q; tL += q * (p || 0); if (p == null) semPreco++;
+    if (q > (a.est[est] || 0)) falta.push(nomeArtigo(a) + ' ' + a.tamanho + ' (' + nomeEst(est) + ')');
+  });
+  Object.entries(CARRO.entrega).forEach(([k, q]) => {
+    const [id, est] = partes(k), a = art(id); if (!a) return;
+    const p = precoEst(a, est);
+    nE += q; tE += q * (p || 0); if (p == null) semPreco++;
+  });
+  Object.entries(CARRO.espera).forEach(([k, q]) => {
+    const [sub, est] = partes(k), p = precoTipo(sub, est);
+    nE += q; tE += q * (p || 0); if (p == null) semPreco++;
+  });
+  let nLv = 0;
+  LIVROS.forEach(lv => {
+    const ql = CARRO_LIV.leva[lv.sub] || 0, qe = CARRO_LIV.entrega[lv.sub] || 0;
+    tL += ql * lv.preco; tE += qe * lv.preco; nLv += ql + qe;
+  });
+  tL = r2(tL); tE = r2(tE);
+  return { tL, tE, nL, nE, nLv, saldo: Math.round((tL - tE) * 100) / 100, semPreco, falta };
+}
+
+function desenharLivros() {
+  [['leva', 'lLivS', 'nLivS'], ['entrega', 'lLivE', 'nLivE']].forEach(([dir, idUl, idN]) => {
+    const ul = document.getElementById(idUl);
+    if (!ul) return;
+    ul.innerHTML = '';
+    let n = 0;
+    LIVROS.forEach(lv => {
+      const q = CARRO_LIV[dir][lv.sub] || 0; n += q;
+      const li = document.createElement('li');
+      li.innerHTML = '<div class="nm"><b>' + esc(lv.sub) + '</b><small>' + eur(lv.preco) + ' / livro</small></div>' +
+        '<div class="mini"><button data-d="-1">−</button><span>' + q + '</span><button data-d="1">+</button></div>' +
+        '<div class="sub">' + eur(q * lv.preco) + '</div>';
+      li.querySelectorAll('.mini button').forEach(b => b.onclick = () => {
+        CARRO_LIV[dir][lv.sub] = Math.max(0, q + +b.dataset.d);
+        if (!CARRO_LIV[dir][lv.sub]) delete CARRO_LIV[dir][lv.sub];
+        idPendente = null; desenharAt();
+      });
+      ul.appendChild(li);
+    });
+    document.getElementById(idN).textContent = n ? n + (n === 1 ? ' livro' : ' livros') : '';
+  });
+}
+
+/* Linha do carrinho em 2 andares: [nome · subtotal · ✕] / [estado · − n +] */
+function linhaCarro(tituloHtml, opcoes, q, subtotal, aviso) {
+  const li = document.createElement('li'); li.className = 'l2';
+  li.innerHTML = '<div class="r1"><div class="nmT">' + tituloHtml + '</div><div class="sub">' + eur(subtotal) + '</div>' +
+    '<button class="tira" title="Tirar">✕</button></div>' +
+    '<div class="r2"><select class="estSel" aria-label="Estado">' + opcoes + '</select>' +
+    '<div class="mini"><button data-d="-1">−</button><span>' + q + '</span><button data-d="1">+</button></div></div>' +
+    (aviso ? '<small class="erro">' + esc(aviso) + '</small>' : '');
+  return li;
+}
+function desenharEntregas() {
+  const ul = document.getElementById('lEnt');
+  ul.innerHTML = '';
+  const ids = Object.keys(CARRO.entrega), ks = Object.keys(CARRO.espera);
+  if (!ids.length && !ks.length) { ul.innerHTML = '<li class="vaziaL">Nenhuma peça.</li>'; return; }
+  // com tamanho → entra no stock
+  ids.forEach(k => {
+    const [id, est] = partes(k), a = art(id); if (!a) return;
+    const q = CARRO.entrega[k], p = precoEst(a, est);
+    const opcoes = estadosDe(a).map(e => '<option value="' + esc(e.chave) + '"' + (e.chave === est ? ' selected' : '') + '>' + esc(e.nome) +
+      (precoEst(a, e.chave) != null ? ' · ' + eur(precoEst(a, e.chave)) : '') + '</option>').join('');
+    const li = linhaCarro(esc(nomeArtigo(a)) + ' <b>· ' + esc(a.tamanho) + '</b> <span class="stkTag">stock</span>', opcoes, q, q * (p || 0),
+      p == null ? '⚠ sem preço' : '');
+    li.querySelector('.estSel').onchange = e => mudarEstadoLinha('entrega', k, e.target.value);
+    li.querySelectorAll('.mini button').forEach(b => b.onclick = () => juntar('entrega', a, +b.dataset.d, est));
+    li.querySelector('.tira').onclick = () => juntar('entrega', a, -q, est);
+    ul.appendChild(li);
+  });
+  // sem tamanho → sala de espera
+  ks.forEach(k => {
+    const [sub, est] = partes(k), q = CARRO.espera[k], p = precoTipo(sub, est);
+    const opcoes = estadosDe(tipoInfo(sub)).map(e => '<option value="' + esc(e.chave) + '"' + (e.chave === est ? ' selected' : '') + '>' + esc(e.nome) +
+      (precoTipo(sub, e.chave) != null ? ' · ' + eur(precoTipo(sub, e.chave)) : '') + '</option>').join('');
+    const li = linhaCarro(esc(sub) + ' <span class="espTag">⏳ sem tam.</span>', opcoes, q, q * (p || 0), p == null ? '⚠ sem preço' : '');
+    li.querySelector('.estSel').onchange = e => mudarEstadoLinha('espera', k, e.target.value);
+    li.querySelectorAll('.mini button').forEach(b => b.onclick = () => juntarEnt(sub, +b.dataset.d, est));
+    li.querySelector('.tira').onclick = () => juntarEnt(sub, -q, est);
+    ul.appendChild(li);
+  });
+}
+
+const livTot = dir => LIVROS.reduce((t, lv) => t + (CARRO_LIV[dir][lv.sub] || 0) * lv.preco, 0);
+function desenharAt() {
+  if (ABERTO_A) listarA();
+  desenharEntregas();
+  desenharLivros();
+  ['leva'].forEach(tipo => {
+    const ul = document.getElementById(tipo === 'leva' ? 'lLeva' : 'lEnt');
+    ul.innerHTML = '';
+    const ids = Object.keys(CARRO[tipo]);
+    if (!ids.length) { ul.innerHTML = '<li class="vaziaL">Nenhuma peça.</li>'; return; }
+    ids.forEach(k => {
+      const [id, est] = partes(k), a = art(id); if (!a) return;
+      const q = CARRO[tipo][k], p = precoEst(a, est);
+      const semStock = tipo === 'leva' && q > (a.est[est] || 0);
+      const opcoes = estadosComStock(a).map(e => '<option value="' + esc(e.chave) + '"' + (e.chave === est ? ' selected' : '') + '>' +
+        esc(e.nome) + (tipo === 'leva' ? ' (' + (a.est[e.chave] || 0) + ')' : '') +
+        (precoEst(a, e.chave) != null ? ' · ' + eur(precoEst(a, e.chave)) : '') + '</option>').join('');
+      const li = linhaCarro(esc(nomeArtigo(a)) + ' <b>· ' + esc(a.tamanho) + '</b>', opcoes, q, q * (p || 0),
+        semStock ? '⚠ só há ' + (a.est[est] || 0) + ' neste estado' : p == null ? '⚠ sem preço' : '');
+      li.querySelector('.estSel').onchange = e => mudarEstadoLinha(tipo, k, e.target.value);
+      li.querySelectorAll('.mini button').forEach(b => b.onclick = () => juntar(tipo, a, +b.dataset.d, est));
+      li.querySelector('.tira').onclick = () => juntar(tipo, a, -q, est);
+      ul.appendChild(li);
+    });
+  });
+  const c = contas();
+  document.getElementById('nLeva').textContent = c.nL ? c.nL + (c.nL === 1 ? ' peça' : ' peças') : '';
+  document.getElementById('nEnt').textContent = c.nE ? c.nE + (c.nE === 1 ? ' peça' : ' peças') : '';
+  document.getElementById('tLeva').textContent = eur(c.tL);
+  document.getElementById('tEnt').textContent = eur(c.tE);
+  document.getElementById('tLevaB').textContent = c.nL ? eur(c.tL - livTot('leva')) : '';
+  document.getElementById('tEntB').textContent = c.nE ? eur(c.tE - livTot('entrega')) : '';
+  const s = document.getElementById('saldo');
+  const ct = contasTalao(c);
+  if (ct) {
+    s.className = 'saldo' + (ct.pagar > 0 ? ' pagar' : ' credito');
+    s.innerHTML = '<small>' + (ct.pagar > 0 ? 'A pagar em dinheiro' : 'Nada a pagar') + '</small>' + eur(ct.pagar) +
+      '<div class="conta">Talão ' + esc(TALAO.canhao) + ': ' + eur(TALAO.saldo) + (c.tE ? ' + ' + eur(c.tE) : '') +
+      (c.tL ? ' − ' + eur(ct.usado) : '') + ' → fica com <b>' + eur(ct.fica) + '</b>' +
+      (ct.fica <= 0 && (ct.usado || c.tE) ? ' · <b>o talão fecha</b>' : '') + '</div>';
+  } else {
+    s.className = 'saldo' + (c.saldo > 0 ? ' pagar' : c.saldo < 0 ? ' credito' : '');
+    s.innerHTML = '<small>' + (c.saldo > 0 ? 'A pagar' : c.saldo < 0 ? 'Crédito a favor' : 'Total') + '</small>' + eur(Math.abs(c.saldo));
+  }
+
+  const avisos = [];
+  if (AVISO_PRECOS) avisos.push('Não consegui ler os preços: ' + AVISO_PRECOS);
+  if (c.semPreco) avisos.push('Há peças sem preço na folha Preços — contam como 0 €.');
+  if (!TALAO && c.saldo < 0) avisos.push('Sem talão, este crédito não fica guardado. Escolhe o talão da pessoa (ou cria um novo no formulário).');
+  if (c.falta.length) avisos.push('Sem stock registado de: ' + c.falta.join(', ') + '. As contas estão certas, mas para confirmar tens de acertar primeiro o stock no Inventário (ou tirar essas peças).');
+  const av = document.getElementById('avisoAt');
+  av.textContent = avisos.join(' '); av.classList.toggle('hidden', !avisos.length);
+  document.getElementById('btnConfirmar').disabled = !(c.nL + c.nE + c.nLv) || c.falta.length > 0;
+  desenharResumo(c);
+  guardarEstado();
+}
+
+function resumoAt() {
+  const c = contas(), l = [];
+  const linha = (t, k, q) => { const [id, est] = partes(k), a = art(id);
+    return t + ' ' + q + '× ' + nomeArtigo(a) + ' ' + a.tamanho + (est !== 'Boa' ? ' (' + nomeEst(est) + ')' : '') +
+      ' = ' + eur(q * (precoEst(a, est) || 0)); };
+  Object.entries(CARRO.leva).forEach(([k, q]) => l.push(linha('Saída', k, q)));
+  Object.entries(CARRO.entrega).forEach(([k, q]) => l.push(linha('Entrada', k, q)));
+  Object.entries(CARRO.espera).forEach(([k, q]) => { const [sub, est] = partes(k);
+    l.push('Entrada ' + q + '× ' + sub + ' (sem tamanho' + (est !== 'Boa' ? ', ' + nomeEst(est) : '') + ') = ' + eur(q * (precoTipo(sub, est) || 0))); });
+  LIVROS.forEach(lv => {
+    ['leva', 'entrega'].forEach(dir => { const q = CARRO_LIV[dir][lv.sub];
+      if (q) l.push((dir === 'leva' ? 'Saída ' : 'Entrada ') + q + '× livro = ' + eur(q * lv.preco)); });
+  });
+  if (FICHA_ATUAL) {
+    l.push('Ficha ' + FICHA_ATUAL.codigo + ' (' + FICHA_ATUAL.nome + ')');
+    (FICHA_ATUAL.recusadas || []).forEach(x => l.push('Não aceite: ' + x));
+  }
+  const ct = contasTalao(c);
+  if (ct) {
+    l.push('Talão ' + TALAO.canhao + ' (' + TALAO.encarregado + '): saldo ' + eur(TALAO.saldo) + ' → fica ' + eur(ct.fica) +
+      (ct.fica <= 0 && (ct.usado || c.tE) ? ' (o talão fica FECHADO)' : ''));
+    l.push('A pagar em dinheiro: ' + eur(ct.pagar));
+  } else {
+    l.push((c.saldo > 0 ? 'A pagar: ' : c.saldo < 0 ? 'Crédito a favor: ' : 'Total: ') + eur(Math.abs(c.saldo)));
+  }
+  return l.join('\n');
+}
+
+function limparAt() {
+  CARRO.leva = {}; CARRO.entrega = {}; CARRO.espera = {}; CARRO_LIV.leva = {}; CARRO_LIV.entrega = {}; idPendente = null;
+  FICHA_ATUAL = null; VERIF = null; desenharVerif();
+  pesqA.value = ''; ABERTO_A = null; filtroA.cat = filtroA.sub = ''; filtroA.tam = []; desenharFiltrosA(); listarA();
+  tirarTalao();
+}
+document.getElementById('btnLimparAt').onclick = () => {
+  if (Object.keys(CARRO.leva).length + Object.keys(CARRO.entrega).length + Object.keys(CARRO.espera).length && !confirm('Limpar este atendimento?')) return;
+  limparAt();
+};
+document.getElementById('btnCopiarAt').onclick = () => {
+  const t = resumoAt();
+  if (navigator.clipboard) navigator.clipboard.writeText(t).then(() => toast('Resumo copiado'), () => prompt('Copia o resumo:', t));
+  else prompt('Copia o resumo:', t);
+};
+
+document.getElementById('btnConfirmar').onclick = async () => {
+  if (!confirm('Confirmar este atendimento? O stock vai ser atualizado.\n\n' + resumoAt())) return;
+  const b = document.getElementById('btnConfirmar');
+  b.disabled = true; b.textContent = 'A gravar…';
+  if (!idPendente) idPendente = 'A' + new Date().toISOString().replace(/\D/g, '').slice(2, 14) + '-' + Math.random().toString(36).slice(2, 5);
+  const linhas = [];
+  Object.entries(CARRO.leva).forEach(([k, qtd]) => { const [id, estado] = partes(k); linhas.push({ id, tipo: 'leva', qtd, estado }); });
+  Object.entries(CARRO.entrega).forEach(([k, qtd]) => { const [id, estado] = partes(k); linhas.push({ id, tipo: 'entrega', qtd, estado }); });
+  Object.entries(CARRO.espera).forEach(([k, qtd]) => { const [sub, estado] = partes(k); linhas.push({ sub, tipo: 'espera', qtd, estado }); });
+  ['leva', 'entrega'].forEach(dir => Object.entries(CARRO_LIV[dir]).forEach(([sub, qtd]) => linhas.push({ tipo: 'livro', sub, dir, qtd })));
+  try {
+    const r = await api('atendimento', { idAt: idPendente, talao: TALAO ? TALAO.canhao : '', ficha: FICHA_ATUAL ? FICHA_ATUAL.codigo : '', linhas });
+    if (r.fichaApagada) { FICHAS = FICHAS.filter(f => f.codigo !== (FICHA_ATUAL || {}).codigo); contarFichas(); }
+    atualizarStocks(r.stocks);
+    limparAt();
+    contarEspera();
+    if (r.repetido) toast('✔ Já estava gravado.');
+    else if (r.talao) toast('✔ Gravado. ' + (r.pagar ? 'Paga ' + eur(r.pagar) + ' em dinheiro. ' : 'Nada a pagar. ') +
+      'Talão ' + r.talao.canhao + (r.talao.fechado ? ' ficou a 0 € e foi FECHADO.' : ' fica com ' + eur(r.talao.saldoFinal) + '.'));
+    else toast('✔ Gravado. ' + (r.saldo > 0 ? 'A pagar ' + eur(r.saldo) : r.saldo < 0 ? 'Crédito ' + eur(-r.saldo) + ' (sem talão)' : ''));
+    carregarHist();
+  } catch (e) {
+    toast('Erro: ' + e.message + ' — podes tentar de novo, não fica duplicado.');
+  } finally {
+    b.textContent = '✔ Confirmar atendimento';
+    desenharAt();
+  }
+};
+
+function atualizarStocks(stocks) {
+  Object.entries(stocks || {}).forEach(([id, n]) => {
+    const a = ARTIGOS.find(x => x.id.toLowerCase() === id.toLowerCase()); if (!a) return;
+    if (typeof n === 'number') a.est = { Boa: n }; else a.est = n;
+    normalizarArtigo(a);
+  });
+}
+
+async function carregarHist() {
+  const ul = document.getElementById('hist');
+  try {
+    const r = await api('atendimentos');
+    ul.innerHTML = '';
+    if (!r.atendimentos.length) { ul.innerHTML = '<li class="meta">Ainda não há atendimentos hoje.</li>'; return; }
+    r.atendimentos.forEach(h => {
+      const anulado = h.estado.indexOf('Anulado') === 0;
+      const li = document.createElement('li');
+      li.innerHTML = '<div class="l1"><span class="' + (anulado ? 'anulado' : '') + '"><b>' + esc(h.data) + '</b> · ' + esc(h.quem) +
+        (h.talao ? ' · talão ' + esc(h.talao) : '') + '</span><b class="' + (anulado ? 'anulado' : '') + '">' +
+        (h.talao && h.pago !== null ? (h.pago ? 'pagou ' + eur(h.pago) : 'pagou 0,00 €')
+          : h.saldo > 0 ? 'pagou ' + eur(h.saldo) : h.saldo < 0 ? 'crédito ' + eur(-h.saldo) : '0,00 €') + '</b></div>' +
+        (h.talao && h.saldoTalao !== null ? '<small>Talão ficou com ' + eur(h.saldoTalao) + '</small>' : '') +
+        '<small>' + (h.leva ? '⬆ ' + esc(h.leva) : '') + (h.leva && h.entrega ? '<br>' : '') + (h.entrega ? '⬇ ' + esc(h.entrega) : '') + '</small>' +
+        (anulado ? '<small>' + esc(h.estado) + '</small>' : '<button class="link vermelho">Anular</button>');
+      const b = li.querySelector('button');
+      if (b) b.onclick = async () => {
+        if (!confirm('Anular o atendimento de ' + h.data + '? As peças voltam ao stock como estavam antes' +
+          (h.talao ? ' e o talão ' + h.talao + ' volta ao saldo que tinha.' : '.'))) return;
+        b.disabled = true; b.textContent = 'A anular…';
+        try { const r2 = await api('anular', { idAt: h.idAt }); atualizarStocks(r2.stocks); toast('✔ Atendimento anulado'); carregarHist(); desenharAt(); }
+        catch (e) { toast('Erro: ' + e.message); b.disabled = false; b.textContent = 'Anular'; }
+      };
+      ul.appendChild(li);
+    });
+  } catch (e) { ul.innerHTML = '<li class="meta">Não consegui carregar: ' + esc(e.message) + '</li>'; }
+}
+document.getElementById('btnHist').onclick = carregarHist;
+
+/* =====================================================================
+   ESPERA: peças entregues sem tamanho → escolher/medir o tamanho → stock
+   ===================================================================== */
+let ESPERA = [], espAberta = null;
+async function contarEspera() {
+  try { const r = await api('espera'); ESPERA = r.espera || []; } catch (e) { return; }
+  document.getElementById('nEsp').textContent = ESPERA.length ? '(' + ESPERA.length + ')' : '';
+}
+async function carregarEspera() {
+  const ul = document.getElementById('listaEsp');
+  ul.innerHTML = '<li class="meta">A carregar…</li>';
+  await contarEspera();
+  desenharEspera();
+}
+document.getElementById('btnEspAtual').onclick = carregarEspera;
+
+// Tipo da folha Medidas que corresponde a este tipo de peça (ex.: "Polo" para "Polo verão")
+function tipoMedidaPara(sub) {
+  const s = semAcentos(sub);
+  return unicos(MEDIDAS.map(m => m.tipo)).find(t => { const x = semAcentos(t); return x === s || s.includes(x) || x.includes(s); }) || '';
+}
+function tamanhoPorMedida(tipo, marca, x) {
+  const ls = MEDIDAS.filter(m => m.tipo === tipo && (m.marca || '') === (marca || '')).sort((a, b) => a.de - b.de);
+  if (!ls.length) return null;
+  const certa = ls.find(m => x >= m.de && x <= m.ate);
+  if (certa) return { tam: certa.tamanho, obs: certa.obs, fora: false };
+  const dist = m => x < m.de ? m.de - x : x - m.ate;
+  return { tam: ls.slice().sort((a, b) => dist(a) - dist(b))[0].tamanho, obs: '', fora: true };
+}
+
+function desenharEspera() {
+  const ul = document.getElementById('listaEsp');
+  ul.innerHTML = '';
+  if (!ESPERA.length) { ul.innerHTML = '<li class="meta">Não há peças à espera. 🎉</li>'; return; }
+  ESPERA.forEach(e => {
+    const li = document.createElement('li');
+    if (espAberta === e.idE) li.className = 'aberto';
+    li.innerHTML = '<div class="topo"><div><b>' + esc(e.tipo) + '</b> · ' + esc(nomeEst(e.estado)) +
+      '<small>' + esc(e.data) + (e.talao ? ' · talão ' + esc(e.talao) : '') + (e.quem ? ' · ' + esc(e.quem) : '') + '</small></div>' +
+      '<span class="meta">' + (espAberta === e.idE ? '▴' : '▾') + '</span></div>';
+    li.querySelector('.topo').onclick = () => { espAberta = espAberta === e.idE ? null : e.idE; desenharEspera(); };
+    if (espAberta === e.idE) li.appendChild(painelEspera(e));
+    ul.appendChild(li);
+  });
+}
+
+function painelEspera(e) {
+  const box = document.createElement('div');
+  box.className = 'painel';
+  const tamanhos = unicos(ARTIGOS.filter(a => a.subcategoria === e.tipo).map(a => a.tamanho)).sort(ordTam);
+  const tMed = tipoMedidaPara(e.tipo);
+  const marcas = tMed ? unicos(MEDIDAS.filter(m => m.tipo === tMed).map(m => m.marca)) : [];
+  let marca = marcas.length ? marcas[0] : '', escolhido = '';
+
+  box.innerHTML =
+    (tMed ? '<div class="filtro-tit">Medir (' + esc(tMed) + ')</div>' +
+      (marcas.length ? '<div class="chips mMarca"></div>' : '') +
+      '<input class="mCm" type="text" inputmode="decimal" placeholder="comprimento em cm" style="margin-top:6px">' +
+      '<div class="mRes meta" style="margin-top:4px"></div>' : '') +
+    '<div class="filtro-tit">Estado</div><div class="chips mEst"></div>' +
+    '<div class="filtro-tit">Tamanho</div><div class="chips mTam"></div>' +
+    '<button class="btn btn-acc mOk" style="margin-top:10px" disabled>Escolhe o tamanho</button>' +
+    '<details class="naoInv" style="margin-top:12px"><summary class="link vermelho" style="cursor:pointer">Não entra no stock…</summary>' +
+      '<div class="chips mMot" style="margin-top:8px"></div>' +
+      '<input class="mMotOutro hidden" type="text" placeholder="Qual o motivo?" style="margin-top:6px">' +
+      '<button class="btn btn-sai mDesc" style="margin-top:8px" disabled>Escolhe o motivo</button>' +
+    '</details>';
+
+  const ok = box.querySelector('.mOk');
+  let estE = e.estado || 'Boa';
+  const zEst = box.querySelector('.mEst');
+  const estOk = estadosDe(tipoInfo(e.tipo)).slice();
+  if (!estOk.some(x => x.chave === estE)) estOk.push(ESTADOS.find(x => x.chave === estE) || { chave: estE, nome: estE });
+  estOk.forEach(x => {
+    const b = document.createElement('button'); b.className = 'chip'; b.dataset.k = x.chave; b.textContent = curtoEst(x); b.title = x.nome;
+    b.onclick = () => { estE = x.chave; pintar(); };
+    zEst.appendChild(b);
+  });
+  const pintar = () => {
+    box.querySelectorAll('.mTam .chip').forEach(c => c.classList.toggle('sel', c.textContent === escolhido));
+    zEst.querySelectorAll('.chip').forEach(c => c.classList.toggle('sel', c.dataset.k === estE));
+    ok.disabled = !escolhido;
+    ok.textContent = escolhido ? '✔ Inventariar: tamanho ' + escolhido + ' · ' + curtoEst(ESTADOS.find(x => x.chave === estE) || { nome: estE }) : 'Escolhe o tamanho';
+  };
+  pintar();
+  const zt = box.querySelector('.mTam');
+  if (!tamanhos.length) zt.innerHTML = '<span class="meta">Não há linhas de ' + esc(e.tipo) + ' no Inventario.</span>';
+  tamanhos.forEach(t => {
+    const b = document.createElement('button'); b.className = 'chip'; b.textContent = t;
+    b.onclick = () => { escolhido = t; pintar(); };
+    zt.appendChild(b);
+  });
+  if (tMed) {
+    const zm = box.querySelector('.mMarca');
+    const desenharMarcas = () => {
+      if (!zm) return;
+      zm.innerHTML = '';
+      marcas.forEach(m => {
+        const b = document.createElement('button'); b.className = 'chip' + (m === marca ? ' sel' : ''); b.textContent = m || 'Outra / não sei';
+        b.onclick = () => { marca = m; desenharMarcas(); medir(); };
+        zm.appendChild(b);
+      });
+    };
+    const medir = () => {
+      const x = parseFloat(box.querySelector('.mCm').value.replace(',', '.'));
+      const res = box.querySelector('.mRes');
+      if (isNaN(x)) { res.textContent = ''; return; }
+      const r = tamanhoPorMedida(tMed, marca, x);
+      if (!r) { res.textContent = 'Sem medidas para esta escolha.'; return; }
+      res.innerHTML = (r.fora ? '⚠ Fora da tabela — mais próximo: ' : '📏 Tamanho ') + '<b>' + esc(r.tam) + '</b>' + (r.obs ? ' · ⚠ ' + esc(r.obs) : '');
+      if (tamanhos.includes(r.tam)) { escolhido = r.tam; pintar(); }
+      else res.innerHTML += ' — não há linha deste tamanho no Inventario';
+    };
+    desenharMarcas();
+    box.querySelector('.mCm').addEventListener('input', medir);
+  }
+  // Não inventariar: escolher o motivo e confirmar
+  const MOTIVOS_DESC = ['Estragada (lixo)', 'Reciclagem', 'Doar a outra instituição', 'Outro'];
+  let motivoD = '';
+  const zMot = box.querySelector('.mMot'), outro = box.querySelector('.mMotOutro'), bDesc = box.querySelector('.mDesc');
+  const pintarMot = () => {
+    zMot.querySelectorAll('.chip').forEach(c => c.classList.toggle('sel', c.textContent === motivoD));
+    outro.classList.toggle('hidden', motivoD !== 'Outro');
+    const final = motivoD === 'Outro' ? outro.value.trim() : motivoD;
+    bDesc.disabled = !final;
+    bDesc.textContent = final ? '🗑 Não inventariar (' + final + ')' : 'Escolhe o motivo';
+  };
+  MOTIVOS_DESC.forEach(m => {
+    const b = document.createElement('button'); b.className = 'chip'; b.textContent = m;
+    b.onclick = () => { motivoD = m; pintarMot(); if (m === 'Outro') outro.focus(); };
+    zMot.appendChild(b);
+  });
+  outro.addEventListener('input', pintarMot);
+  bDesc.onclick = async () => {
+    const final = motivoD === 'Outro' ? outro.value.trim() : motivoD;
+    if (!confirm('Esta peça (' + e.tipo + ', ' + nomeEst(e.estado) + ') não vai entrar no stock.\nMotivo: ' + final +
+      '\n\nO crédito dado no atendimento não muda.')) return;
+    bDesc.disabled = true; bDesc.textContent = 'A gravar…';
+    try {
+      await api('descartar', { idE: e.idE, motivo: final });
+      ESPERA = ESPERA.filter(x => x.idE !== e.idE); espAberta = null;
+      document.getElementById('nEsp').textContent = ESPERA.length ? '(' + ESPERA.length + ')' : '';
+      toast('✔ ' + e.tipo + ' retirada da espera (' + final + ')');
+      desenharEspera();
+    } catch (err) { toast('Erro: ' + err.message); pintarMot(); }
+  };
+
+  ok.onclick = async () => {
+    ok.disabled = true; ok.textContent = 'A gravar…';
+    try {
+      const r = await api('inventariar', { idE: e.idE, tamanho: escolhido, estado: estE });
+      atualizarStocks(r.stocks);
+      ESPERA = ESPERA.filter(x => x.idE !== e.idE); espAberta = null;
+      document.getElementById('nEsp').textContent = ESPERA.length ? '(' + ESPERA.length + ')' : '';
+      toast('✔ ' + e.tipo + ' ' + escolhido + ' (' + nomeEst(estE) + ') → stock (' + r.codigo + ')');
+      desenharEspera();
+    } catch (err) { toast('Erro: ' + err.message); pintar(); }
+  };
+  return box;
+}
+
+/* =====================================================================
+   MEDIR: tipo (+ marca nos bibes) + comprimento → tamanho, pela folha Medidas
+   ===================================================================== */
+const med = { tipo: '', marca: null };
+function chips2(idEl, valores, atual, aoEscolher) {
+  const el = document.getElementById(idEl);
+  el.innerHTML = '';
+  valores.forEach(([v, rot]) => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (atual === v ? ' sel' : '');
+    b.textContent = rot;
+    b.onclick = () => aoEscolher(v);
+    el.appendChild(b);
+  });
+}
+function desenharMedir() {
+  const aviso = document.getElementById('semMedidas');
+  if (!MEDIDAS.length) {
+    aviso.textContent = 'Ainda não há medidas: preenche a folha "Medidas" na Sheet (o "configurar" cria-a) e entra outra vez na app.';
+    document.querySelector('#tabMed .card').classList.add('hidden');
+    return;
+  }
+  aviso.textContent = '';
+  document.querySelector('#tabMed .card').classList.remove('hidden');
+  const tipos = unicos(MEDIDAS.map(m => m.tipo));
+  if (!tipos.includes(med.tipo)) med.tipo = tipos[0];
+  chips2('medTipo', tipos.map(t => [t, t]), med.tipo, v => { med.tipo = v; med.marca = null; desenharMedir(); });
+
+  const doTipo = MEDIDAS.filter(m => m.tipo === med.tipo);
+  const marcas = unicos(doTipo.map(m => m.marca));
+  const temGeral = doTipo.some(m => !m.marca);
+  const usaMarca = marcas.length > 0;
+  document.getElementById('blocoMarca').classList.toggle('hidden', !usaMarca);
+  if (usaMarca) {
+    const ops = marcas.map(m => [m, m]).concat(temGeral ? [['', 'Outra / não sei']] : []);
+    if (med.marca === null || !ops.some(o => o[0] === med.marca)) med.marca = ops[0][0];
+    chips2('medMarca', ops, med.marca, v => { med.marca = v; desenharMedir(); });
+  } else med.marca = '';
+  document.getElementById('titCm').textContent = (usaMarca ? '3' : '2') + '. Comprimento (cm)';
+
+  const nota = unicos(linhasMed().map(m => m.nota))[0];
+  const cm = document.getElementById('comoMedir');
+  cm.textContent = nota ? '📐 ' + nota : ''; cm.classList.toggle('hidden', !nota);
+  calcularMedida();
+}
+function linhasMed() {
+  return MEDIDAS.filter(m => m.tipo === med.tipo && (m.marca || '') === (med.marca || ''))
+    .sort((a, b) => a.de - b.de);
+}
+function calcularMedida() {
+  const res = document.getElementById('resMed'), bloco = document.getElementById('blocoPecasMed');
+  const txt = document.getElementById('numCm').value.trim().replace(',', '.');
+  const x = parseFloat(txt);
+  res.innerHTML = ''; bloco.classList.add('hidden');
+  if (!txt || isNaN(x)) return;
+  const ls = linhasMed();
+  if (!ls.length) { res.innerHTML = '<div class="resMed fora"><div class="t">Não há medidas para esta escolha na folha Medidas.</div></div>'; return; }
+  const cm = n => String(n).replace('.', ',') + ' cm';
+  const certa = ls.find(m => x >= m.de && x <= m.ate);
+  let tam;
+  if (certa) {
+    tam = certa.tamanho;
+    res.innerHTML = '<div class="resMed"><div class="t">Guardar no tamanho</div><div class="n">' + esc(tam) + '</div>' +
+      '<small>' + esc(med.tipo) + (med.marca ? ' · ' + esc(med.marca) : '') + ' · de ' + cm(certa.de) + ' a ' + cm(certa.ate) + '</small>' +
+      (certa.obs ? '<div class="obsMed">⚠ ' + esc(certa.obs) + '</div>' : '') + '</div>';
+  } else {
+    // Fora da tabela ou num intervalo vazio: indica o mais próximo
+    const dist = m => x < m.de ? m.de - x : x - m.ate;
+    const perto = ls.slice().sort((a, b) => dist(a) - dist(b))[0];
+    tam = perto.tamanho;
+    res.innerHTML = '<div class="resMed fora"><div class="t">' + (x < ls[0].de ? 'Mais pequeno do que a tabela' : x > ls[ls.length - 1].ate ? 'Maior do que a tabela' : 'Fica entre dois tamanhos') +
+      ' — o mais próximo é</div><div class="n">' + esc(tam) + '</div><small>' + esc(tam) + ': de ' + cm(perto.de) + ' a ' + cm(perto.ate) + '. Confirma a medida ou acerta a folha Medidas.</small></div>';
+  }
+  listarPecasMed(tam);
+}
+function listarPecasMed(tam) {
+  const bloco = document.getElementById('blocoPecasMed'), ul = document.getElementById('pecasMed');
+  let q = semAcentos(document.getElementById('filtroMed').value.trim()).split(/\s+/).filter(Boolean);
+  // Se o tipo medido for o nome de uma peça (ex.: "Bibe"), mostra logo só essas peças
+  const t = semAcentos(med.tipo);
+  if (!q.length && ARTIGOS.some(a => semAcentos(a.subcategoria).includes(t))) q = [t];
+  const res = ARTIGOS.filter(a => semAcentos(a.tamanho) === semAcentos(tam) &&
+    q.every(p => semAcentos([a.categoria, a.subcategoria, a.descricao, a.id].join(' ')).includes(p)))
+    .sort((x, y) => x.subcategoria.localeCompare(y.subcategoria, 'pt'));
+  bloco.classList.remove('hidden');
+  document.getElementById('nPecasMed').textContent = res.length + (res.length === 1 ? ' peça' : ' peças');
+  ul.innerHTML = res.length ? '' : '<li class="meta" style="cursor:default">Nenhuma peça com o tamanho ' + esc(tam) + ' na folha Inventario.</li>';
+  res.slice(0, 60).forEach(a => {
+    const li = document.createElement('li');
+    li.innerHTML = '<div>' + esc(nomeArtigo(a)) + ' <b>· ' + esc(a.tamanho) + '</b><small>' + esc([a.categoria, a.id].join(' · ')) + '</small></div>' +
+      '<span class="badge' + (a.stock ? '' : ' zero') + '">' + a.stock + '</span>';
+    li.onclick = async () => {        // abre a ficha no Inventário, pronta para dar entrada
+      await irPara('inv');
+      campo.value = a.id; filtrar(); mostrar(a);
+    };
+    ul.appendChild(li);
+  });
+}
+document.getElementById('numCm').addEventListener('input', calcularMedida);
+
+/* Tabelas de medidas: uma por linha da folha Medidas (tipos juntos) e marca */
+function gruposMedidas() {
+  const g = {}, ordem = [];
+  MEDIDAS.forEach(m => {
+    const k = (m.tipos || m.tipo) + '|' + (m.marca || '');
+    if (!g[k]) { g[k] = { tipos: m.tipos || m.tipo, marca: m.marca || '', nota: '', linhas: {} }; ordem.push(k); }
+    if (m.nota && !g[k].nota) g[k].nota = m.nota;
+    g[k].linhas[m.tamanho + '|' + m.de + '|' + m.ate] = m;
+  });
+  return ordem.map(k => Object.assign(g[k], { linhas: Object.values(g[k].linhas).sort((a, b) => a.de - b.de) }));
+}
+function htmlTabelas(destacar) {
+  const cm = n => String(n).replace('.', ',');
+  const gs = gruposMedidas();
+  if (!gs.length) return '<p>Ainda não há medidas na folha Medidas.</p>';
+  return gs.map(g => {
+    const atual = destacar && semAcentos(g.tipos).split(/\s*[,;]\s*/).includes(semAcentos(med.tipo)) && (g.marca || '') === (med.marca || '');
+    return '<div class="grpMed' + (atual ? ' atual' : '') + '"><b>' + esc(g.tipos) + '</b><span>' + (g.marca ? 'Marca: ' + esc(g.marca) : 'Todas as marcas') + '</span></div>' +
+      (g.nota ? '<div style="font-size:.8rem;color:#666;margin:2px 0 4px">📐 ' + esc(g.nota) + '</div>' : '') +
+      '<table class="tabMedidas"><tr><th>Tamanho</th><th>De (cm)</th><th>Até (cm)</th><th>Observações</th></tr>' +
+      g.linhas.map(m => '<tr><td class="t">' + esc(m.tamanho) + '</td><td class="n">' + cm(m.de) + '</td><td class="n">' + cm(m.ate) + '</td><td>' + esc(m.obs || '') + '</td></tr>').join('') +
+      '</table>';
+  }).join('');
+}
+document.getElementById('btnTabelas').onclick = () => {
+  const box = document.getElementById('tabelasMed'), b = document.getElementById('btnTabelas');
+  const abrir = box.classList.contains('hidden');
+  box.innerHTML = abrir ? htmlTabelas(true) : '';
+  box.classList.toggle('hidden', !abrir);
+  b.textContent = abrir ? '✕ Fechar tabelas' : '📋 Ver tabelas';
+  if (abrir) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+/* Tabela de preços por tipo de peça e estado (só consulta) */
+function htmlPrecos() {
+  const cod = e => (e.nome.match(/^(\S+\s)?(C\d+)/) || [, '', e.cod || ''])[0].trim() || e.chave;
+  const tipos = tiposDePeca().filter(t => t.vende);
+  if (!tipos.length) return '<p class="meta">Sem peças.</p>';
+  let html = '<table class="tabPrecos"><tr><th>Peça</th>' + ESTADOS.map(e => '<th>' + esc(cod(e)) + '</th>').join('') + '</tr>', grp = null;
+  tipos.forEach(t => {
+    if (t.grupo !== grp) { grp = t.grupo; html += '<tr class="grp"><td colspan="' + (ESTADOS.length + 1) + '">' + esc(grp) + '</td></tr>'; }
+    html += '<tr><td>' + esc(t.tipo) + '</td>' + ESTADOS.map(e => {
+      const p = t.precos ? t.precos[e.chave] : t.preco;
+      return (t.estadosOk && !t.estadosOk.includes(e.chave)) || p == null ? '<td class="na">—</td>' : '<td>' + eur(p) + '</td>';
+    }).join('') + '</tr>';
+  });
+  if (LIVROS.length) html += '<tr class="grp"><td colspan="' + (ESTADOS.length + 1) + '">Livros PNL / EMRC: ' + eur(LIVROS[0].preco) + ' cada</td></tr>';
+  html += '</table><div class="legenda">' + ESTADOS.map(e => esc(e.nome)).join('<br>') + '<br>— = estado que não se aplica a essa peça (folha Tipos) ou sem preço</div>';
+  return html;
+}
+document.getElementById('btnPrecos').onclick = () => {
+  const box = document.getElementById('tabelaPrecos'), b = document.getElementById('btnPrecos');
+  const abrir = box.classList.contains('hidden');
+  box.innerHTML = abrir ? htmlPrecos() : '';
+  box.classList.toggle('hidden', !abrir);
+  b.textContent = abrir ? '✕ Fechar preços' : '💶 Ver preços';
+  if (abrir) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+/* Página para imprimir: por grupo (Uniforme, Ginástica, Outros), tabelas estreitas, menino | menina lado a lado */
+function generoDe(t) { const m = semAcentos(t).match(/\b(menin[oa]s?|rapaz(es)?|raparigas?)\b/); return !m ? '' : /^(menina|rapariga)/.test(m[1]) ? 'F' : 'M'; }
+function grupoDosTipos(tipos) {
+  const nomes = String(tipos).split(/\s*[,;]\s*/).map(semAcentos);
+  if (nomes.some(n => /\bbibes?\b/.test(n))) return 'Bibes';
+  const sing = t => t.split(' ').map(w => w.length > 3 ? w.replace(/(es|s)$/, '') : w).join(' ');
+  for (const n of nomes) {
+    const a = ARTIGOS.find(x => semAcentos(x.subcategoria) === n || sing(semAcentos(x.subcategoria)) === sing(n));
+    if (a) return a.categoria;
+  }
+  for (const n of nomes) {             // "Polo menino" ↔ peça "Polo"
+    const base = sing(n.replace(/\b(menin[oa]s?|rapaz(es)?|raparigas?)\b/g, '').replace(/\s+/g, ' ').trim());
+    const a = base && ARTIGOS.find(x => sing(semAcentos(x.subcategoria)) === base);
+    if (a) return a.categoria;
+  }
+  return 'Outros';
+}
+function tabelaImp(g, tituloBloco) {
+  if (!g) return '<div class="med vazio"></div>';
+  // por baixo da barra só o que distingue a tabela: menino/menina e marca (o nome da peça já está na barra)
+  const gen = generoDe(g.tipos), igual = semAcentos(semGenero(g.tipos)) === semAcentos(tituloBloco || '');
+  const partes = [igual ? (gen === 'M' ? 'Menino' : gen === 'F' ? 'Menina' : '') : g.tipos, g.marca].filter(Boolean);
+  const cm = n => String(n).replace('.', ',');
+  const temObs = g.linhas.some(m => m.obs);
+  return '<div class="med">' + (partes.length ? '<div class="tit"><b>' + esc(partes[0]) + '</b>' + (partes[1] ? ' <span>· ' + esc(partes[1]) + '</span>' : '') + '</div>' : '') +
+    (g.nota ? '<div class="nota">📐 ' + esc(g.nota) + '</div>' : '') +
+    '<table><tr><th>Tam.</th><th>De</th><th>Até</th>' + (temObs ? '<th>Obs.</th>' : '') + '</tr>' +
+    g.linhas.map(m => '<tr><td class="t">' + esc(m.tamanho) + '</td><td class="n">' + cm(m.de) + '</td><td class="n">' + cm(m.ate) + '</td>' +
+      (temObs ? '<td class="o">' + esc(m.obs || '') + '</td>' : '') + '</tr>').join('') + '</table></div>';
+}
+/* Uma barra verde por peça (o nome da folha Medidas); todos os bibes juntos em "Bibes";
+   menino e menina da mesma peça ficam debaixo da mesma barra, lado a lado */
+const RX_GEN = /\b(menin[oa]s?|rapaz(es)?|raparigas?)\b/gi;
+const semGenero = t => String(t).replace(RX_GEN, '').replace(/\s+([,;])/g, '$1').replace(/\s{2,}/g, ' ').trim();
+function htmlTabelasImpressao() {
+  const gs = gruposMedidas();
+  if (!gs.length) return '<p>Ainda não há medidas na folha Medidas.</p>';
+  const blocos = {}, ordem = [];
+  gs.forEach(g => {
+    const bibe = /\bbibes?\b/.test(semAcentos(g.tipos));
+    const titulo = bibe ? 'Bibes' : semGenero(g.tipos);
+    const k = semAcentos(titulo);
+    if (!blocos[k]) { blocos[k] = { titulo, itens: [], pares: {} }; if (bibe) ordem.unshift(k); else ordem.push(k); }
+    const b = blocos[k], gen = generoDe(g.tipos);
+    if (!gen) { b.itens.push({ so: g }); return; }
+    const base = semAcentos(semGenero(g.tipos)) + '|' + semAcentos(g.marca);
+    if (!b.pares[base] || b.pares[base][gen]) { b.pares[base] = { M: null, F: null }; b.itens.push(b.pares[base]); }
+    b.pares[base][gen] = g;
+  });
+  return '<div class="blocos">' + ordem.map(k => {
+    const b = blocos[k];
+    return '<section class="bloco"><h2>' + esc(b.titulo) + '</h2><div class="fluxo">' +
+      b.itens.map(it => it.so ? tabelaImp(it.so, b.titulo) : '<div class="par">' + tabelaImp(it.M, b.titulo) + tabelaImp(it.F, b.titulo) + '</div>').join('') +
+      '</div></section>';
+  }).join('') + '</div>';
+}
+document.getElementById('btnTabelasPag').onclick = () => {
+  const w = window.open('', '_blank');
+  if (!w) { toast('O browser bloqueou a página nova. Usa "Ver tabelas".'); return; }
+  w.document.write('<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
+    '<title>Tabelas de medidas</title><style>' +
+    '*{box-sizing:border-box}body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:16px;color:#1f2a2e;font-size:13px;max-width:190mm}' +
+    'h1{font-size:1.25rem;margin:0 0 6px}h2{font-size:.95rem;margin:0 0 5px;padding:3px 8px;background:#1f6f5c;color:#fff;border-radius:4px}' +
+    '.blocos{display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px 18px;margin-top:8px}.bloco{break-inside:avoid;max-width:100%}' +
+    '.fluxo{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px 26px}' +
+    '.par{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:flex-start;padding:3px 6px;border:1px dashed #d6d2c8;border-radius:6px;break-inside:avoid}' +
+    '.med{break-inside:avoid;max-width:100%}.med.vazio{min-width:9em;align-self:stretch}' +
+    '.med .tit{margin:2px 0}.med .tit span{color:#666}.nota{font-size:11px;color:#666;margin:0 0 2px}' +
+    'table{border-collapse:collapse}th,td{border:1px solid #ccc;padding:2px 7px;text-align:left}th{background:#f3f3f3;font-weight:600}' +
+    'td.n{text-align:right;white-space:nowrap}td.t{font-weight:700}td.o{font-size:11px;max-width:14em;overflow-wrap:anywhere}' +
+    '.btn{padding:8px 14px;border:0;border-radius:8px;background:#1f6f5c;color:#fff;font-size:1rem;margin-bottom:6px}' +
+    '@media print{.btn{display:none}body{margin:0}@page{size:A4;margin:10mm}}' +
+    '</style></head><body>' +
+    '<h1>📏 Tabelas de medidas · Banco de Fardas</h1><button class="btn" onclick="print()">🖨 Imprimir</button>' + htmlTabelasImpressao() + '</body></html>');
+  w.document.close();
+};
+document.getElementById('filtroMed').addEventListener('input', calcularMedida);
+
+/* =====================================================================
+   RASCUNHO DO ATENDIMENTO: enquanto um atendimento não é confirmado, o que já foi
+   introduzido (peças, livros, talão) fica guardado neste aparelho. Se a página recarregar
+   (ex.: ao mudar de app) é recuperado. Ao confirmar ou limpar, o rascunho é apagado.
+   Um rascunho com mais de 2 horas é ignorado.
+   ===================================================================== */
+const RASCUNHO = 'fardasv1_rascunho', VALIDADE_MS = 2 * 3600 * 1000;
+function temAtendimento() {
+  return Object.keys(CARRO.leva).length + Object.keys(CARRO.entrega).length + Object.keys(CARRO.espera).length +
+    Object.keys(CARRO_LIV.leva).length + Object.keys(CARRO_LIV.entrega).length > 0 || !!TALAO || !!FICHA_ATUAL;
+}
+function guardarEstado() {
+  if (document.getElementById('ecraApp').classList.contains('hidden')) return;   // ainda não entrou
+  try {
+    if (!temAtendimento()) { localStorage.removeItem(RASCUNHO); return; }
+    localStorage.setItem(RASCUNHO, JSON.stringify({
+      v: 2, t: Date.now(), leva: CARRO.leva, entrega: CARRO.entrega, espera: CARRO.espera, liv: CARRO_LIV, talao: TALAO, ficha: FICHA_ATUAL, idPendente
+    }));
+  } catch (e) {}
+}
+async function restaurarEstado() {
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(RASCUNHO) || 'null'); } catch (e) {}
+  if (!s) return;
+  if (Date.now() - (s.t || 0) > VALIDADE_MS) { try { localStorage.removeItem(RASCUNHO); } catch (e) {} return; }
+  const existe = k => !!art(partes(k)[0]);
+  CARRO.leva = {}; Object.entries(s.leva || {}).forEach(([k, q]) => { if (existe(k)) CARRO.leva[k] = q; });
+  CARRO.entrega = {}; CARRO.espera = {};
+  if (s.v === 2) {
+    Object.entries(s.entrega || {}).forEach(([k, q]) => { if (existe(k)) CARRO.entrega[k] = q; });
+    Object.assign(CARRO.espera, s.espera || {});
+  } else Object.assign(CARRO.espera, s.entrega || {});      // rascunho antigo: as entregas eram todas sem tamanho
+  CARRO_LIV.leva = Object.assign({}, (s.liv || {}).leva || {});
+  CARRO_LIV.entrega = Object.assign({}, (s.liv || {}).entrega || {});
+  idPendente = s.idPendente || null;
+  FICHA_ATUAL = s.ficha || null;
+  if (s.talao) escolherTalao(s.talao);
+  await irPara('res');
+  toast('↩ Atendimento em curso recuperado');
+  // O saldo do talão pode ter mudado entretanto: vai buscá-lo outra vez
+  if (s.talao) {
+    try {
+      const r = await api('taloes', null, { q: s.talao.canhao, fechados: '1' });
+      const t = (r.taloes || []).find(x => x.canhao === s.talao.canhao);
+      if (t && TALAO && TALAO.canhao === t.canhao) escolherTalao(t);
+    } catch (e) {}
+  }
+}
+// Guarda sempre que a app vai para segundo plano (mudar de app, bloquear o ecrã…) e a cada alteração
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') guardarEstado(); });
+window.addEventListener('pagehide', guardarEstado);
+
+
+/* =====================================================================
+   FICHAS DOS PAIS (versão 1)
+   Entradas: procurar a ficha (nome, email, código ou QR) → verificar peça a peça → passar para o carrinho.
+   A ficha é apagada pelo servidor quando o atendimento fica gravado.
+   ===================================================================== */
+let FICHAS = [], FICHA_ATUAL = null, VERIF = null, URL_FICHA = '';
+const MOTIVOS_NAO = ['Suja / com pelos', 'Não é de loja oficial', 'Outro'];
+
+async function carregarFichas() {
+  try {
+    const r = await api('fichas');
+    FICHAS = r.fichas || [];
+    if (r.urlFicha && r.urlFicha !== URL_FICHA) { URL_FICHA = r.urlFicha; desenharLinkFicha(); }
+  } catch (e) { toast('Fichas: ' + e.message); }
+  contarFichas(); listarFichasEnt(); listarFichasTab();
+}
+function contarFichas() {
+  const n = FICHAS.length;
+  document.getElementById('nFic').textContent = n ? '(' + n + ')' : '';
+  document.getElementById('nFichasE').textContent = n ? n + ' por usar' : '';
+  document.getElementById('nFichasT').textContent = n ? '(' + n + ')' : '';
+}
+const filtraFichas = q => { const k = semAcentos(q || ''); return FICHAS.filter(f => !k || semAcentos([f.codigo, f.nome, f.email].join(' ')).includes(k)); };
+function resumoFicha(f) {
+  const np = f.pecas.length, nl = Object.values(f.livros || {}).reduce((a, b) => a + b, 0);
+  return np + (np === 1 ? ' peça' : ' peças') + (nl ? ' · ' + nl + (nl === 1 ? ' livro' : ' livros') : '') + ' · ' + f.data;
+}
+// Entradas: só aparecem quando se escreve (ou as 5 mais recentes)
+function listarFichasEnt() {
+  const box = document.getElementById('fichasLista'), q = document.getElementById('fichaQ').value.trim();
+  box.innerHTML = '';
+  if (VERIF) return;
+  const l = filtraFichas(q).slice(0, q ? 20 : 5);
+  if (!l.length) { box.innerHTML = '<p class="meta">' + (q ? 'Nenhuma ficha encontrada.' : 'Não há fichas por usar.') + '</p>'; return; }
+  l.forEach(f => {
+    const d = document.createElement('div'); d.className = 'ficha-it';
+    d.innerHTML = '<b>' + esc(f.nome) + '</b> · ' + esc(f.codigo) + '<small>' + esc(f.email) + ' · ' + resumoFicha(f) + '</small>';
+    d.onclick = () => abrirFicha(f.codigo);
+    box.appendChild(d);
+  });
+}
+document.getElementById('fichaQ').addEventListener('input', listarFichasEnt);
+
+// Separador Fichas: lista completa, com detalhe e apagar
+function listarFichasTab() {
+  const box = document.getElementById('ficLista'), l = filtraFichas(document.getElementById('ficQ').value.trim());
+  box.innerHTML = '';
+  if (!l.length) { box.innerHTML = '<p class="meta">Não há fichas por usar.</p>'; return; }
+  l.forEach(f => {
+    const d = document.createElement('details'); d.className = 'ficha-it';
+    d.innerHTML = '<summary><b>' + esc(f.nome) + '</b> · ' + esc(f.codigo) + '<small>' + esc(f.email) + ' · ' + resumoFicha(f) + '</small></summary>' +
+      '<ol style="margin:8px 0;padding-left:20px;font-size:.9rem">' + f.pecas.map(p => '<li>' + esc(p.tipo) + ' · ' + (p.tamanho ? 'tam. ' + esc(p.tamanho) : 'sem tamanho') +
+        ' · ' + esc(nomeEst(p.estado)) + (p.defeitos.length ? '<br><small>' + esc(p.defeitos.join(', ')) + '</small>' : '') +
+        (p.nota ? '<br><small>“' + esc(p.nota) + '”</small>' : '') + '</li>').join('') +
+      Object.entries(f.livros || {}).map(([k, q]) => '<li>📚 ' + esc(k) + ' × ' + q + '</li>').join('') + '</ol>' +
+      '<div class="acoes"><button class="btn btn-acc usar">Usar no atendimento</button><button class="btn btn-sai apagar">Apagar</button></div>';
+    d.querySelector('.usar').onclick = () => abrirFicha(f.codigo);
+    d.querySelector('.apagar').onclick = async () => {
+      if (!confirm('Apagar a ficha ' + f.codigo + ' (' + f.nome + ')? Não dá para desfazer.')) return;
+      try { await api('apagarFicha', { codigo: f.codigo }); FICHAS = FICHAS.filter(x => x.codigo !== f.codigo); contarFichas(); listarFichasTab(); listarFichasEnt(); toast('Ficha apagada.'); }
+      catch (e) { toast('Erro: ' + e.message); }
+    };
+    box.appendChild(d);
+  });
+}
+document.getElementById('ficQ').addEventListener('input', listarFichasTab);
+document.getElementById('btnFicAtual').onclick = carregarFichas;
+
+function desenharLinkFicha() {
+  document.getElementById('linkFicha').href = URL_FICHA;
+  const q = document.getElementById('qrFicha'); q.innerHTML = '';
+  try { if (typeof QRCode !== 'undefined') new QRCode(q, { text: URL_FICHA, width: 240, height: 240, correctLevel: QRCode.CorrectLevel.M }); } catch (e) {}
+}
+document.getElementById('btnCopiarFicha').onclick = () => {
+  if (!URL_FICHA) return;
+  if (navigator.clipboard) navigator.clipboard.writeText(URL_FICHA).then(() => toast('Link copiado'), () => prompt('Copia o link:', URL_FICHA));
+  else prompt('Copia o link:', URL_FICHA);
+};
+
+/* ---------- Verificação peça a peça ---------- */
+const tamanhosDoTipo = tipo => unicos(ARTIGOS.filter(a => a.subcategoria === tipo).map(a => a.tamanho)).sort(ordTam);
+async function abrirFicha(codigo) {
+  codigo = String(codigo || '').trim().toUpperCase();
+  if (FICHA_ATUAL && FICHA_ATUAL.codigo !== codigo) { toast('Este atendimento já tem a ficha ' + FICHA_ATUAL.codigo + '. Confirma ou limpa antes de usar outra.'); return; }
+  if (FICHA_ATUAL && FICHA_ATUAL.codigo === codigo) { toast('Esta ficha já está no carrinho.'); return; }
+  if (TAB_ATUAL !== 'ent') await irPara('ent');
+  let f = FICHAS.find(x => x.codigo.toUpperCase() === codigo);
+  if (!f) { await carregarFichas(); f = FICHAS.find(x => x.codigo.toUpperCase() === codigo); }
+  if (!f) { toast('Ficha ' + codigo + ' não encontrada (já usada ou com mais de 14 dias?).'); return; }
+  VERIF = {
+    f, livros: Object.assign({}, f.livros || {}),
+    pecas: f.pecas.map(p => {
+      const t = tipoInfo(p.tipo), ok = estadosDe(t).map(e => e.chave);
+      // se o estado declarado não se aplica a esta peça, fica no pior estado permitido (vocês confirmam)
+      const est = ok.includes(p.estado) ? p.estado : ok[ok.length - 1];
+      const tams = tamanhosDoTipo(p.tipo);
+      return Object.assign({}, p, { est, tam: tams.includes(p.tamanho) ? p.tamanho : '', dec: null, motivo: '' });
+    })
+  };
+  desenharVerif();
+  document.getElementById('zonaFichas').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function desenharVerif() {
+  const box = document.getElementById('verif');
+  if (!box) return;
+  box.innerHTML = '';
+  listarFichasEnt();
+  if (!VERIF) return;
+  const V = VERIF, f = V.f, el = document.createElement('div'); el.className = 'verif';
+  el.innerHTML = '<div style="display:flex;gap:8px;align-items:flex-start"><div style="flex:1"><h3>' + esc(f.nome) + ' · ' + esc(f.codigo) + '</h3>' +
+    '<div class="meta" style="margin:0">' + esc(f.email) + ' · ' + resumoFicha(f) + '</div></div><button class="tira" title="Fechar">✕</button></div>' +
+    '<p class="meta" style="margin:6px 0 0">Pega em cada peça (vêm dobradas pela ordem da ficha) e confirma-a ou marca “Não aceite”. Corrige o estado ou o tamanho se for preciso.</p>';
+  el.querySelector('.tira').onclick = () => { VERIF = null; desenharVerif(); };
+  // agrupado por peça e tamanho declarado
+  const grupos = {};
+  V.pecas.forEach(p => { const k = p.tipo + ' · ' + (p.tamanho ? 'tam. ' + p.tamanho : 'sem tamanho'); (grupos[k] = grupos[k] || []).push(p); });
+  Object.entries(grupos).forEach(([k, ps]) => {
+    el.insertAdjacentHTML('beforeend', '<div class="vgrp">' + esc(k) + ' (' + ps.length + ')</div>');
+    ps.forEach(p => {
+      const t = tipoInfo(p.tipo), tams = tamanhosDoTipo(p.tipo), val = precoTipo(p.tipo, p.est);
+      const d = document.createElement('div'); d.className = 'vp' + (p.dec ? ' ' + p.dec : '');
+      d.innerHTML = '<div class="l1"><b>#' + p.n + '</b><span>' + (p.defeitos.length ? esc(p.defeitos.join(', ')) : 'sem defeitos') +
+          (p.nota ? ' · “' + esc(p.nota) + '”' : '') + '</span><span class="val">' + (p.dec === 'nao' ? '—' : val != null ? eur(val) : '⚠ sem preço') + '</span></div>' +
+        '<div class="l2"><select class="vEst">' + estadosDe(t).map(e => '<option value="' + esc(e.chave) + '"' + (e.chave === p.est ? ' selected' : '') + '>' + esc(e.nome) + '</option>').join('') + '</select>' +
+          '<select class="vTam"><option value="">s/ tam. (espera)</option>' + tams.map(z => '<option' + (z === p.tam ? ' selected' : '') + '>' + esc(z) + '</option>').join('') + '</select></div>' +
+        '<div class="l3"><button class="ok' + (p.dec === 'ok' ? ' sel' : '') + '">✔ Confere</button><button class="nao' + (p.dec === 'nao' ? ' sel' : '') + '">✕ Não aceite</button>' +
+          (p.dec === 'nao' ? MOTIVOS_NAO.map(m => '<button class="mot' + (p.motivo === m ? ' sel nao' : '') + '">' + esc(m) + '</button>').join('') : '') + '</div>';
+      d.querySelector('.vEst').onchange = e => { p.est = e.target.value; desenharVerif(); };
+      d.querySelector('.vTam').onchange = e => { p.tam = e.target.value; };
+      d.querySelector('.l3 .ok').onclick = () => { p.dec = 'ok'; p.motivo = ''; desenharVerif(); };
+      d.querySelector('.l3 .nao').onclick = () => { p.dec = 'nao'; desenharVerif(); };
+      d.querySelectorAll('.l3 .mot').forEach(b => b.onclick = () => { p.motivo = b.textContent; desenharVerif(); });
+      el.appendChild(d);
+    });
+  });
+  // livros da ficha (podem ser corrigidos)
+  if (LIVROS.some(lv => V.livros[lv.sub]) || Object.keys(V.livros).length) {
+    el.insertAdjacentHTML('beforeend', '<div class="vgrp">📚 Livros</div>');
+    LIVROS.forEach(lv => {
+      const q = V.livros[lv.sub] || 0, d = document.createElement('div'); d.className = 'lv';
+      d.style.cssText = 'display:flex;align-items:center;gap:8px;padding:3px 0';
+      d.innerHTML = '<span style="flex:1">' + esc(lv.sub) + '</span><div class="mini"><button>−</button><span>' + q + '</span><button>+</button></div>';
+      const bs = d.querySelectorAll('button');
+      bs[0].onclick = () => { V.livros[lv.sub] = Math.max(0, q - 1); desenharVerif(); };
+      bs[1].onclick = () => { V.livros[lv.sub] = q + 1; desenharVerif(); };
+      el.appendChild(d);
+    });
+  }
+  const falta = V.pecas.filter(p => !p.dec || (p.dec === 'nao' && !p.motivo)).length;
+  const b = document.createElement('button'); b.className = 'btn btn-acc'; b.style.marginTop = '10px';
+  b.disabled = falta > 0;
+  b.textContent = falta ? 'Falta verificar ' + falta + (falta === 1 ? ' peça' : ' peças') : '➜ Passar para o carrinho';
+  b.onclick = passarFichaParaCarro;
+  el.appendChild(b);
+  box.appendChild(el);
+}
+function passarFichaParaCarro() {
+  const V = VERIF; if (!V) return;
+  let n = 0;
+  const recusadas = [];
+  V.pecas.forEach(p => {
+    if (p.dec === 'nao') { recusadas.push('#' + p.n + ' ' + p.tipo + (p.tam ? ' ' + p.tam : '') + ' (' + p.motivo + ')'); return; }
+    const a = p.tam ? ARTIGOS.find(x => x.subcategoria === p.tipo && x.tamanho === p.tam) : null;
+    if (a) { const k = chaveC(a.id, p.est); CARRO.entrega[k] = (CARRO.entrega[k] || 0) + 1; }
+    else { const k = chaveC(p.tipo, p.est); CARRO.espera[k] = (CARRO.espera[k] || 0) + 1; }
+    n++;
+  });
+  Object.entries(V.livros).forEach(([sub, q]) => { if (q > 0) CARRO_LIV.entrega[sub] = (CARRO_LIV.entrega[sub] || 0) + q; });
+  FICHA_ATUAL = { codigo: V.f.codigo, nome: V.f.nome, recusadas };
+  VERIF = null; idPendente = null;
+  desenharVerif(); desenharAt();
+  toast('⬇ ' + n + (n === 1 ? ' peça' : ' peças') + ' da ficha ' + FICHA_ATUAL.codigo + ' no carrinho' + (recusadas.length ? ' · ' + recusadas.length + ' não aceite(s)' : ''));
+}
+
+/* ---------- Resumo (separador Resumo) ---------- */
+function desenharResumo(c) {
+  const ul = document.getElementById('resumoLista'), fi = document.getElementById('fichaInfo');
+  if (!ul) return;
+  fi.innerHTML = FICHA_ATUAL ? '<div class="aviso" style="background:#e3f2ec;color:#155443;margin:0 0 8px">📋 Ficha <b>' + esc(FICHA_ATUAL.codigo) + '</b> · ' + esc(FICHA_ATUAL.nome) +
+    ' — é apagada quando confirmares.' + (FICHA_ATUAL.recusadas.length ? '<br>Não aceites: ' + esc(FICHA_ATUAL.recusadas.join('; ')) : '') + '</div>' : '';
+  const li = (txt, v) => '<li><span>' + txt + '</span><b>' + eur(v) + '</b></li>';
+  let h = '';
+  const sai = Object.entries(CARRO.leva), ent = Object.entries(CARRO.entrega), esp = Object.entries(CARRO.espera);
+  const livS = LIVROS.filter(lv => CARRO_LIV.leva[lv.sub]), livE = LIVROS.filter(lv => CARRO_LIV.entrega[lv.sub]);
+  if (sai.length || livS.length) {
+    h += '<li class="rt">⬆ Saídas</li>';
+    sai.forEach(([k, q]) => { const [id, e] = partes(k), a = art(id); if (a) h += li(q + '× ' + esc(nomeArtigo(a)) + ' ' + esc(a.tamanho) + ' · ' + esc(nomeEst(e).split(' · ')[0]), q * (precoEst(a, e) || 0)); });
+    livS.forEach(lv => { const q = CARRO_LIV.leva[lv.sub]; h += li(q + '× 📚 ' + esc(lv.sub), q * lv.preco); });
+  }
+  if (ent.length || esp.length || livE.length) {
+    h += '<li class="rt">⬇ Entradas</li>';
+    ent.forEach(([k, q]) => { const [id, e] = partes(k), a = art(id); if (a) h += li(q + '× ' + esc(nomeArtigo(a)) + ' ' + esc(a.tamanho) + ' · ' + esc(nomeEst(e).split(' · ')[0]), q * (precoEst(a, e) || 0)); });
+    esp.forEach(([k, q]) => { const [sub, e] = partes(k); h += li(q + '× ' + esc(sub) + ' ⏳ s/ tam. · ' + esc(nomeEst(e).split(' · ')[0]), q * (precoTipo(sub, e) || 0)); });
+    livE.forEach(lv => { const q = CARRO_LIV.entrega[lv.sub]; h += li(q + '× 📚 ' + esc(lv.sub), q * lv.preco); });
+  }
+  ul.innerHTML = h || '<li class="meta">Ainda nada. Junta peças em Saídas e Entradas.</li>';
+}
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function toast(t) { const m = document.getElementById('msg'); m.textContent = t; m.style.display = 'block'; clearTimeout(m._t); m._t = setTimeout(() => m.style.display = 'none', 3200); }
+</script>
+</body>
+</html>

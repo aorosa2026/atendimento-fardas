@@ -15,7 +15,7 @@
      LINHA A ALTERAR
      API_URL → link da Aplicação Web do Apps Script do INVENTÁRIO (termina em /exec)
      ====================================================================== */
-  const API_URL  = 'https://script.google.com/macros/s/AKfycbzdyrPY7vPXbtsK8dfm-8NrVsngGv5mNhZVe80yz5Wn3WSXyksHRAg51w3l6S9P6Wx2/exec';   // link /exec da implementação do projeto AtendimentoAPP
+  const API_URL  = 'COLAR_AQUI_O_LINK_DA_APP_NOVA';   // link /exec da implementação do projeto AtendimentoAPP
 </script>
 <style>
   :root { --bg:#f6f4ef; --card:#fff; --ink:#1f2a2e; --muted:#6b7578; --acc:#1f6f5c; --ok:#e3f2ec; --no:#fbe9e7; --sai:#a3402e; --line:#e2ded6; }
@@ -1835,7 +1835,7 @@ window.addEventListener('pagehide', guardarEstado);
    A ficha é apagada pelo servidor quando o atendimento fica gravado.
    ===================================================================== */
 let FICHAS = [], FICHA_ATUAL = null, VERIF = null, URL_FICHA = '';
-const MOTIVOS_NAO = ['Suja / com pelos', 'Não é de loja oficial', 'Outro'];
+const MOTIVOS_NAO = ['Defeito não aceite', 'Suja / com pelos', 'Não é de loja oficial', 'Outro'];
 
 async function carregarFichas() {
   try {
@@ -1925,7 +1925,8 @@ async function abrirFicha(codigo) {
       // se o estado declarado não se aplica a esta peça, fica no pior estado permitido (vocês confirmam)
       const est = ok.includes(p.estado) ? p.estado : ok[ok.length - 1];
       const tams = tamanhosDoTipo(p.tipo);
-      return Object.assign({}, p, { est, tam: tams.includes(p.tamanho) ? p.tamanho : '', dec: null, motivo: '' });
+      // defeito marcado como "Não aceitamos" para esta peça → já vem sugerida como Não aceite (pode mudar-se)
+      return Object.assign({}, p, { est, tam: tams.includes(p.tamanho) ? p.tamanho : '', dec: p.recusa ? 'nao' : null, motivo: p.recusa ? 'Defeito não aceite' : '' });
     })
   };
   desenharVerif();

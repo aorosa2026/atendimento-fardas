@@ -455,6 +455,13 @@ async function api(acao, dados, extra) {
 /* ---------- Entrada ---------- */
 function guardar(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 function lerGuardado(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+// A palavra-passe guardada neste aparelho só serve até à meia-noite; depois a app volta a pedi-la
+function fimDoDia() { const d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime(); }
+function pwValida() {
+  if (!lerGuardado('fardasv1_pw')) return false;
+  if (Date.now() > (Number(lerGuardado('fardasv1_pwAte')) || 0)) { guardar('fardasv1_pw', ''); return false; }
+  return true;
+}
 
 document.getElementById('nome').value = lerGuardado('fardasv1_nome');
 document.getElementById('btnEntrar').onclick = entrar;
@@ -464,7 +471,7 @@ document.getElementById('btnSair').onclick = () => { guardar('fardasv1_pw', '');
 async function entrar(automatico) {
   const nome = document.getElementById('nome').value.trim() || lerGuardado('fardasv1_nome');
   // Sem nada escrito no campo, tenta a palavra-passe já guardada neste aparelho
-  const pw = automatico === true ? lerGuardado('fardasv1_pw') : (document.getElementById('pw').value || lerGuardado('fardasv1_pw'));
+  const pw = automatico === true ? (pwValida() ? lerGuardado('fardasv1_pw') : '') : (document.getElementById('pw').value || (pwValida() ? lerGuardado('fardasv1_pw') : ''));
   if (!nome) { toast('Escreve o teu nome.'); return; }
   if (!pw) return;
   SESSAO = { nome, pw };
@@ -472,7 +479,7 @@ async function entrar(automatico) {
   b.disabled = true; b.textContent = 'A entrar…';
   try {
     const d = await api('dados');
-    guardar('fardasv1_nome', nome); guardar('fardasv1_pw', pw);
+    guardar('fardasv1_nome', nome); guardar('fardasv1_pw', pw); guardar('fardasv1_pwAte', String(fimDoDia()));
     ARTIGOS = d.artigos;
     AVISO_PRECOS = d.avisoPrecos || '';
     const lf = document.getElementById('linkForm');
@@ -500,10 +507,15 @@ async function entrar(automatico) {
     b.disabled = false; b.textContent = 'Entrar';
   }
 }
-if (lerGuardado('fardasv1_pw')) entrar(true);
+if (pwValida()) entrar(true);
+// Se a app ficar aberta e passar da meia-noite, ao voltar a ela pede de novo a palavra-passe
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !document.getElementById('ecraApp').classList.contains('hidden') &&
+      Date.now() > (Number(lerGuardado('fardasv1_pwAte')) || 0)) { try { guardarEstado(); } catch (e) {} guardar('fardasv1_pw', ''); location.reload(); }
+});
 // Se a rede voltar e ainda estivermos no ecrã de entrada, tenta outra vez sozinha
 window.addEventListener('online', () => {
-  if (lerGuardado('fardasv1_pw') && !document.getElementById('ecraEntrada').classList.contains('hidden')) entrar(true);
+  if (pwValida() && !document.getElementById('ecraEntrada').classList.contains('hidden')) entrar(true);
 });
 
 /* ---------- Separadores ---------- */

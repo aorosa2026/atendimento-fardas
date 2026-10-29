@@ -15,7 +15,7 @@
      LINHA A ALTERAR
      API_URL → link da Aplicação Web do Apps Script do INVENTÁRIO (termina em /exec)
      ====================================================================== */
-  const API_URL  = 'https://script.google.com/macros/s/AKfycbzdyrPY7vPXbtsK8dfm-8NrVsngGv5mNhZVe80yz5Wn3WSXyksHRAg51w3l6S9P6Wx2/exec';   // link /exec da implementação do projeto AtendimentoAPP
+  const API_URL  = 'COLAR_AQUI_O_LINK_DA_APP_NOVA';   // link /exec da implementação do projeto AtendimentoAPP
 </script>
 <style>
   :root { --bg:#f6f4ef; --card:#fff; --ink:#1f2a2e; --muted:#6b7578; --acc:#1f6f5c; --ok:#e3f2ec; --no:#fbe9e7; --sai:#a3402e; --line:#e2ded6; }
@@ -62,6 +62,7 @@
   .vp .l3 button { border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 11px; font:inherit; font-size:.85rem; cursor:pointer; }
   .vp .l3 button.sel.ok { background:var(--acc); color:#fff; border-color:var(--acc); } .vp .l3 button.sel.nao { background:var(--sai); color:#fff; border-color:var(--sai); }
   .vp .val { font-weight:700; white-space:nowrap; }
+  .vp .resp { margin-top:3px; font-size:.86rem; line-height:1.45; background:#f6f5f1; border-radius:8px; padding:5px 8px; } .vp .avR { color:var(--sai); font-weight:700; }
   .resumo li { display:flex; gap:8px; padding:4px 0; border-top:1px solid var(--line); font-size:.9rem; } .resumo li:first-child { border-top:0; }
   .resumo li span { flex:1; } .resumo .rt { font-weight:700; color:var(--muted); font-size:.78rem; text-transform:uppercase; margin-top:8px; }
   #qrFicha { display:flex; justify-content:center; margin:8px 0; } #qrFicha img, #qrFicha canvas { width:170px !important; height:170px !important; }
@@ -1847,7 +1848,7 @@ window.addEventListener('pagehide', guardarEstado);
    A ficha é apagada pelo servidor quando o atendimento fica gravado.
    ===================================================================== */
 let FICHAS = [], FICHA_ATUAL = null, VERIF = null, URL_FICHA = '';
-const MOTIVOS_NAO = ['Defeito não aceite', 'Suja / com pelos', 'Não é de loja oficial', 'Outro'];
+const MOTIVOS_NAO = ['Defeito não aceite', 'Não lavada', 'Não cumpre requisitos do Reg.', 'Outro'];
 
 async function carregarFichas() {
   try {
@@ -1944,6 +1945,17 @@ async function abrirFicha(codigo) {
   desenharVerif();
   document.getElementById('zonaFichas').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+/* O que a pessoa respondeu nesta peça: cada defeito com o seu estado, e o estado final que daí resulta.
+   ⚠ = defeito que não aceitamos nesta peça, ou estado acima do que aceitamos nesta peça. */
+const estCurto = k => nomeEst(k).split(' · ')[0];
+function respostaPeca(p, declOk) {
+  const det = p.det || p.defeitos.map(t => ({ t }));   // fichas antigas: só os nomes dos defeitos
+  if (!det.length) return 'Respondeu: <b>sem defeitos</b>';
+  const defs = det.map(x => '<b>' + esc(x.t) + '</b>' + (x.e ? ' ' + esc(estCurto(x.e)) : '') +
+    (x.r ? ' <span class="avR">⚠ não aceitamos nesta peça</span>' : '')).join(' · ');
+  return 'Respondeu: ' + defs + '<br>→ estado <b>' + esc(estCurto(p.estado)) + '</b>' +
+    (declOk ? '' : ' <span class="avR">⚠ acima do que aceitamos nesta peça</span>');
+}
 function desenharVerif() {
   const box = document.getElementById('verif');
   if (!box) return;
@@ -1963,9 +1975,10 @@ function desenharVerif() {
     ps.forEach(p => {
       const t = tipoInfo(p.tipo), tams = tamanhosDoTipo(p.tipo), val = precoTipo(p.tipo, p.est);
       const d = document.createElement('div'); d.className = 'vp' + (p.dec ? ' ' + p.dec : '');
-      d.innerHTML = '<div class="l1"><b>#' + p.n + '</b><span>' + (p.defeitos.length ? esc(p.defeitos.join(', ')) : 'sem defeitos') +
-          (p.nota ? ' · “' + esc(p.nota) + '”' : '') + '</span><span class="val">' + (p.dec === 'nao' ? '—' : val != null ? eur(val) : '⚠ sem preço') + '</span></div>' +
-        '<div class="l2"><select class="vEst">' + estadosDe(t).map(e => '<option value="' + esc(e.chave) + '"' + (e.chave === p.est ? ' selected' : '') + '>' + esc(e.nome) + '</option>').join('') + '</select>' +
+      const okEst = estadosDe(t), declOk = okEst.some(e => e.chave === p.estado);
+      d.innerHTML = '<div class="l1"><b>#' + p.n + '</b><span>' + (p.nota ? 'Nota: “' + esc(p.nota) + '”' : '') + '</span><span class="val">' + (p.dec === 'nao' ? '—' : val != null ? eur(val) : '⚠ sem preço') + '</span></div>' +
+        '<div class="resp">' + respostaPeca(p, declOk) + '</div>' +
+        '<div class="l2"><select class="vEst" title="Só aparecem os estados que aceitamos nesta peça">' + okEst.map(e => '<option value="' + esc(e.chave) + '"' + (e.chave === p.est ? ' selected' : '') + '>' + esc(e.nome) + (e.chave === p.estado ? ' ← respondeu' : '') + '</option>').join('') + '</select>' +
           '<select class="vTam"><option value="">s/ tam. (espera)</option>' + tams.map(z => '<option' + (z === p.tam ? ' selected' : '') + '>' + esc(z) + '</option>').join('') + '</select></div>' +
         '<div class="l3"><button class="ok' + (p.dec === 'ok' ? ' sel' : '') + '">✔ Confere</button><button class="nao' + (p.dec === 'nao' ? ' sel' : '') + '">✕ Não aceite</button>' +
           (p.dec === 'nao' ? MOTIVOS_NAO.map(m => '<button class="mot' + (p.motivo === m ? ' sel nao' : '') + '">' + esc(m) + '</button>').join('') : '') + '</div>';

@@ -92,6 +92,8 @@
   .gfTabs button { flex:1; min-width:0; border:0; background:none; border-radius:999px; padding:7px 6px; font:inherit; font-size:.85rem; font-weight:700; color:var(--muted); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .gfTabs button.sel { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.12); }
   .gfTopo a, .gfTopo button.x { flex:none; border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 11px; font:inherit; font-size:.85rem; font-weight:700; color:var(--ink); text-decoration:none; cursor:pointer; }
+  #gfNova { padding:8px 12px; background:#e3f2ec; border-bottom:1px solid #8cc7b2; font-size:.9rem; display:flex; align-items:center; gap:8px; flex-wrap:wrap; } #gfNova.hidden { display:none; }
+  #gfNova button { margin-left:auto; border:0; background:var(--acc); color:#fff; border-radius:999px; padding:7px 13px; font:inherit; font-weight:700; cursor:pointer; }
   #gavetaForm iframe { flex:1; width:100%; border:0; background:#fff; }
   .chip.semTam { background:#fff6db; border-color:#e6cf8a; color:#7a5a00; }
   .chip.semTam.sel { background:#b8860b; border-color:#b8860b; color:#fff; }
@@ -323,7 +325,7 @@
 
     <!-- Separador: Medir -->
     <div id="fundoGaveta" class="hidden"></div>
-    <div id="gavetaForm" class="hidden"><div class="gfTopo"><div class="gfTabs"><button data-f="credito">➕ Novo crédito</button><button data-f="entregas">📦 Entregas</button></div><a id="gfAbrir" target="_blank" rel="noopener" title="Abrir num separador à parte">↗</a><button class="x" id="gfFechar">✕</button></div><iframe id="ifr_credito" title="Formulário novo crédito"></iframe><iframe id="ifr_entregas" title="Formulário entregas" class="hidden"></iframe></div>
+    <div id="gavetaForm" class="hidden"><div class="gfTopo"><div class="gfTabs"><button data-f="credito">➕ Novo crédito</button><button data-f="entregas">📦 Entregas</button></div><a id="gfAbrir" target="_blank" rel="noopener" title="Abrir num separador à parte">↗</a><button class="x" id="gfFechar">✕</button></div><div id="gfNova" class="hidden"></div><iframe id="ifr_credito" title="Formulário novo crédito"></iframe><iframe id="ifr_entregas" title="Formulário entregas" class="hidden"></iframe></div>
     <div id="tabMed" class="hidden">
       <div id="gavetaTopo"><b>📏 Medir</b><button id="btnFecharGaveta">✕ Fechar</button></div>
       <div class="card" style="margin-top:0">
@@ -2141,6 +2143,7 @@ const CARGAS = { credito: 0, entregas: 0 };
 const urlEmbutido = u => /docs\.google\.com\/forms\//.test(u) ? u + (u.includes('?') ? '&' : '?') + 'embedded=true' : u;
 function carregarForm(f) { const fr = document.getElementById('ifr_' + f); if (!FORMS[f] || !fr) return; CARGAS[f] = 0; fr.src = urlEmbutido(FORMS[f]); }
 function prepararForms() {
+  if (!FORMS.entregas) FORMS.entregas = API_URL + '?action=ficha';   // formulário de entregas = a ficha dos pais
   const tem = ['credito', 'entregas'].filter(f => FORMS[f]);
   document.getElementById('btnForms').classList.toggle('hidden', !tem.length);
   document.querySelectorAll('.gfTabs button').forEach(b => b.classList.toggle('hidden', !FORMS[b.dataset.f]));
@@ -2166,9 +2169,23 @@ function fecharForms() {
   if (g.classList.contains('hidden')) return;
   g.classList.add('hidden');
   document.getElementById('fundoGaveta').classList.add('hidden');
+  document.getElementById('gfNova').classList.add('hidden');
   // mais de uma carga = a resposta foi enviada → volta a pôr o formulário em branco
   ['credito', 'entregas'].forEach(f => { if (CARGAS[f] > 1) carregarForm(f); });
 }
+/* Ficha dos pais preenchida ao balcão (aba Entregas): ao enviar, a ficha avisa a app com o código */
+window.addEventListener('message', e => {
+  const d = e.data || {};
+  if (d.tipo !== 'fichaEnviada' || !/^F-\d{4}$/.test(String(d.codigo || ''))) return;
+  if (!/(\.googleusercontent\.com|script\.google\.com)$/.test(new URL(e.origin).hostname)) return;
+  CARGAS.entregas = 2;                      // ao fechar, a ficha volta a ficar em branco
+  FICHAS_NOVA = d.codigo;
+  const bar = document.getElementById('gfNova');
+  bar.innerHTML = '✔ Ficha <b>' + esc(d.codigo) + '</b> criada <button>➜ Abrir nas Entradas</button>';
+  bar.classList.remove('hidden');
+  bar.querySelector('button').onclick = async () => { fecharForms(); await carregarFichas(); abrirFicha(d.codigo); };
+});
+let FICHAS_NOVA = '';
 document.getElementById('btnForms').onclick = () => document.getElementById('gavetaForm').classList.contains('hidden') ? abrirForms() : fecharForms();
 document.querySelectorAll('.gfTabs button').forEach(b => b.onclick = () => mostrarForm(b.dataset.f));
 document.getElementById('gfFechar').onclick = fecharForms;

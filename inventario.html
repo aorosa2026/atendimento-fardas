@@ -9,6 +9,7 @@
 <meta name="theme-color" content="#1f6f5c">
 <title>Inventário · Banco de Fardas v1</title>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
   /* ======================================================================
      LINHA A ALTERAR
@@ -61,9 +62,37 @@
   .vp .l3 button { border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 11px; font:inherit; font-size:.85rem; cursor:pointer; }
   .vp .l3 button.sel.ok { background:var(--acc); color:#fff; border-color:var(--acc); } .vp .l3 button.sel.nao { background:var(--sai); color:#fff; border-color:var(--sai); }
   .vp .val { font-weight:700; white-space:nowrap; }
+  .vp .resp { margin-top:3px; font-size:.86rem; line-height:1.45; background:#f6f5f1; border-radius:8px; padding:5px 8px; } .vp .avR { color:var(--sai); font-weight:700; }
   .resumo li { display:flex; gap:8px; padding:4px 0; border-top:1px solid var(--line); font-size:.9rem; } .resumo li:first-child { border-top:0; }
   .resumo li span { flex:1; } .resumo .rt { font-weight:700; color:var(--muted); font-size:.78rem; text-transform:uppercase; margin-top:8px; }
   #qrFicha { display:flex; justify-content:center; margin:8px 0; } #qrFicha img, #qrFicha canvas { width:170px !important; height:170px !important; }
+  .hdrUni { gap:6px; flex-wrap:nowrap; }
+  .modos { display:flex; background:#ebe7df; border-radius:999px; padding:3px; flex:1; min-width:0; max-width:330px; }
+  .modos button { flex:1; min-width:0; border:0; background:none; border-radius:999px; padding:7px 6px; font:inherit; font-size:.84rem; font-weight:700; color:var(--muted); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  /* cores dos dois lados (diferentes do azul das Saídas, do verde das Entradas e do vermelho dos avisos) */
+  :root { --modo-at:#6b3f69; --modo-inv:#2f3b40; }
+  body[data-app="at"] .modos button[data-modo="at"] { background:var(--modo-at); color:#fff; }
+  body[data-app="inv"] .modos button[data-modo="inv"] { background:var(--modo-inv); color:#fff; }
+  body[data-app]::before { content:""; position:fixed; top:0; left:0; right:0; height:4px; z-index:70; }
+  body[data-app="at"]::before { background:var(--modo-at); } body[data-app="inv"]::before { background:var(--modo-inv); }
+  body[data-app="at"] .tabs button.sel { color:var(--modo-at); } body[data-app="inv"] .tabs button.sel { color:var(--modo-inv); }
+  .hdrBtn { flex:none; border:1px solid var(--line); background:#fff; border-radius:999px; width:36px; height:36px; font-size:1.05rem; cursor:pointer; padding:0; }
+  .hdrUni .sair { margin-left:2px; }
+  @media (max-width:440px) { .modos .ico { display:none; } .hdrUni { gap:4px; } .hdrBtn { width:34px; height:34px; font-size:1rem; } .modos button { font-size:.82rem; padding:7px 4px; } }
+  body[data-app="inv"] #btnMedir { display:none; }
+  body[data-app="at"] #navInv, body[data-app="inv"] #navAt { display:none; }
+  #fundoGaveta { position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:60; }
+  #tabMed.gaveta { position:fixed; top:0; right:0; bottom:0; width:min(560px,100%); overflow:auto; background:var(--bg, #f6f4ef); z-index:61; padding:10px 12px 30px; box-shadow:-6px 0 24px rgba(0,0,0,.2); }
+  #gavetaTopo { display:none; } #tabMed.gaveta #gavetaTopo { display:flex; align-items:center; justify-content:space-between; position:sticky; top:-10px; background:var(--bg, #f6f4ef); padding:6px 0 8px; z-index:2; }
+  #gavetaTopo b { font-size:1.05rem; } #gavetaTopo button { border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 14px; font:inherit; font-weight:700; cursor:pointer; }
+  #gavetaForm { position:fixed; top:0; right:0; bottom:0; width:min(680px,100%); background:var(--bg, #f6f4ef); z-index:61; display:flex; flex-direction:column; box-shadow:-6px 0 24px rgba(0,0,0,.2); }
+  #gavetaForm.hidden { display:none; }
+  .gfTopo { display:flex; align-items:center; gap:6px; padding:8px 10px; border-bottom:1px solid var(--line); }
+  .gfTabs { display:flex; flex:1; min-width:0; background:#ebe7df; border-radius:999px; padding:3px; }
+  .gfTabs button { flex:1; min-width:0; border:0; background:none; border-radius:999px; padding:7px 6px; font:inherit; font-size:.85rem; font-weight:700; color:var(--muted); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .gfTabs button.sel { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.12); }
+  .gfTopo a, .gfTopo button.x { flex:none; border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 11px; font:inherit; font-size:.85rem; font-weight:700; color:var(--ink); text-decoration:none; cursor:pointer; }
+  #gavetaForm iframe { flex:1; width:100%; border:0; background:#fff; }
   .chip.semTam { background:#fff6db; border-color:#e6cf8a; color:#7a5a00; }
   .chip.semTam.sel { background:#b8860b; border-color:#b8860b; color:#fff; }
 
@@ -247,16 +276,22 @@
 
   <!-- ===== App ===== -->
   <section id="ecraApp" class="hidden">
-    <header><h1>👕 Inventário <small style="font-size:.7rem;color:var(--muted);font-weight:400">v1</small></h1><a class="outraApp" href="atendimento.html">🧾 Atendimento</a><button class="sair" id="btnSair">sair</button></header>
+    <header class="hdrUni"><div class="modos"><button data-modo="at"><span class="ico">🧾 </span>Atendimento</button><button data-modo="inv"><span class="ico">👕 </span>Inventário</button></div><button id="btnMedir" class="hdrBtn" title="Medir (abre por cima, sem sair do atendimento)">📏</button><button id="btnForms" class="hdrBtn hidden" title="Formulários: novo crédito e entregas (abrem por cima, já carregados)">📝</button><button id="btnManuais" class="hdrBtn" title="Manuais (abre noutro separador, que fica aberto)">📚</button><button class="sair" id="btnSair">sair</button></header>
 
-    <nav class="tabs">
-      <button data-tab="inv" class="sel">👕 Inventário</button>
+    <nav class="tabs" id="navAt">
+      <button data-tab="sai">⬆ Saídas</button>
+      <button data-tab="ent">⬇ Entradas</button>
+      <button data-tab="res">🧾 Resumo</button>
+      <button data-tab="fic">📋 Fichas <span id="nFic"></span></button>
+    </nav>
+    <nav class="tabs" id="navInv">
+      <button data-tab="inv">👕 Inventário</button>
       <button data-tab="med">📏 Medir</button>
       <button data-tab="esp">⏳ Espera <span id="nEsp"></span></button>
     </nav>
 
     <!-- Separador: Inventário -->
-    <div id="tabInv">
+    <div id="tabInv" class="hidden">
       <button id="btnLer" class="btn btn-acc">📷 Ler código QR</button>
       <div id="leitor"></div>
       <button id="btnFoto" class="link">Não lê? Tirar uma foto ao QR</button>
@@ -287,7 +322,10 @@
     </div>
 
     <!-- Separador: Medir -->
+    <div id="fundoGaveta" class="hidden"></div>
+    <div id="gavetaForm" class="hidden"><div class="gfTopo"><div class="gfTabs"><button data-f="credito">➕ Novo crédito</button><button data-f="entregas">📦 Entregas</button></div><a id="gfAbrir" target="_blank" rel="noopener" title="Abrir num separador à parte">↗</a><button class="x" id="gfFechar">✕</button></div><iframe id="ifr_credito" title="Formulário novo crédito"></iframe><iframe id="ifr_entregas" title="Formulário entregas" class="hidden"></iframe></div>
     <div id="tabMed" class="hidden">
+      <div id="gavetaTopo"><b>📏 Medir</b><button id="btnFecharGaveta">✕ Fechar</button></div>
       <div class="card" style="margin-top:0">
         <div class="filtro-tit" style="margin-top:0">1. O que é?</div>
         <div class="chips" id="medTipo"></div>
@@ -480,6 +518,7 @@ async function entrar(automatico) {
     ARTIGOS = d.artigos;
     AVISO_PRECOS = d.avisoPrecos || '';
     const lf = document.getElementById('linkForm');
+    FORMS = { credito: d.formTaloes || '', entregas: d.formEntregas || '' }; prepararForms();
     if (d.formTaloes) { lf.href = d.formTaloes; lf.classList.remove('hidden'); } else lf.classList.add('hidden');
     if (d.estados && d.estados.length) ESTADOS = d.estados;
     MEDIDAS = d.medidas || [];
@@ -492,7 +531,8 @@ async function entrar(automatico) {
     desenharFiltros(); filtrar();
     // Se o QR tiver o link da página com ?id=..., abre logo a ficha
     const idLink = new URLSearchParams(location.search).get('id');
-    if (idLink) abrirPorCodigo(idLink);
+    await irPara(MODO_INICIAL === 'at' ? 'sai' : 'inv');
+    if (idLink) abrirPorCodigo(idLink); else await restaurarEstado(MODO_INICIAL === 'inv');
   } catch (e) {
     const pwErrada = /palavra-passe/i.test(e.message || '');
     if (pwErrada) guardar('fardasv1_pw', '');      // só esquece a palavra-passe se estiver mesmo errada
@@ -515,12 +555,18 @@ window.addEventListener('online', () => {
 });
 
 /* ---------- Separadores ---------- */
-const SEPARADORES = { inv: 'tabInv', med: 'tabMed', esp: 'tabEsp' };
-let TAB_ATUAL = 'inv';
+const SEPARADORES = { sai: 'tabAt', ent: 'tabAt', res: 'tabRes', fic: 'tabFic', inv: 'tabInv', med: 'tabMed', esp: 'tabEsp' };
+const TABS_AT = ['sai', 'ent', 'res', 'fic'];
+const MODO_INICIAL = 'inv';   // este ficheiro abre do lado do Inventário; o outro lado está no mesmo ecrã (botões em cima)
+let TAB_ATUAL = MODO_INICIAL === 'at' ? 'sai' : 'inv';
+const ULTIMO_TAB = { at: 'sai', inv: 'inv' };
 async function irPara(tab) {
   TAB_ATUAL = tab;
   document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('sel', x.dataset.tab === tab));
   await pararLeitor();
+  fecharGaveta();
+  const app = TABS_AT.includes(tab) ? 'at' : 'inv';
+  document.body.dataset.app = app; ULTIMO_TAB[app] = tab;
   const vis = SEPARADORES[tab];
   [...new Set(Object.values(SEPARADORES))].forEach(id => document.getElementById(id).classList.toggle('hidden', id !== vis));
   if (tab === 'sai' || tab === 'ent') { pesqA.value = ''; mudarModoAt(tab === 'sai' ? 'leva' : 'entrega'); desenharAt(); if (tab === 'ent') carregarFichas(); }
@@ -612,15 +658,13 @@ function tipoSemTamDoQR(txt) {
   return t;
 }
 async function abrirSemTamanho(t) {
-  toast('QR "sem tamanho": usa a app de Atendimento (separador Entradas).'); return;
-  if (TAB_ATUAL !== 'at') await irPara('at');
-  mudarModoAt('entrega');
+  if (TAB_ATUAL !== 'ent') await irPara('ent');
   filtroA.cat = t.grupo; filtroA.sub = t.tipo; filtroA.tam = [SEM_TAM]; pesqA.value = '';
   ABERTO_A = 'esp:' + t.tipo; desenharFiltrosA(); listarA();
   toast('⬇ Entrada sem tamanho: ' + t.tipo + ' — escolhe o estado');
 }
 function abrirPorCodigo(txt) {
-  if (/^FICHA:/i.test(String(txt).trim())) { toast('QR de ficha dos pais: usa a app de Atendimento (separador Entradas).'); return; }
+  if (/^FICHA:/i.test(String(txt).trim())) { abrirFicha(String(txt).trim().slice(6).trim()); return; }
   const t = tipoSemTamDoQR(txt);
   if (t) { abrirSemTamanho(t); return; }
   if (t === false) return;
@@ -1642,6 +1686,7 @@ function listarPecasMed(tam) {
     li.innerHTML = '<div>' + esc(nomeArtigo(a)) + ' <b>· ' + esc(a.tamanho) + '</b><small>' + esc([a.categoria, a.id].join(' · ')) + '</small></div>' +
       '<span class="badge' + (a.stock ? '' : ' zero') + '">' + a.stock + '</span>';
     li.onclick = async () => {        // abre a ficha no Inventário, pronta para dar entrada
+      if (gavetaAberta()) { fecharGaveta(); if (TAB_ATUAL !== 'sai' && TAB_ATUAL !== 'ent') await irPara('sai'); pesqA.value = a.id; ABERTO_A = null; listarA(); pesqA.scrollIntoView({ block: 'center' }); return; }
       await irPara('inv');
       campo.value = a.id; filtrar(); mostrar(a);
     };
@@ -1806,7 +1851,7 @@ function guardarEstado() {
     }));
   } catch (e) {}
 }
-async function restaurarEstado() {
+async function restaurarEstado(ficar) {   // ficar = não mudar de separador (quando a página abre do lado do Inventário)
   let s = null;
   try { s = JSON.parse(localStorage.getItem(RASCUNHO) || 'null'); } catch (e) {}
   if (!s) return;
@@ -1823,7 +1868,7 @@ async function restaurarEstado() {
   idPendente = s.idPendente || null;
   FICHA_ATUAL = s.ficha || null;
   if (s.talao) escolherTalao(s.talao);
-  await irPara('at');
+  if (!ficar) await irPara('res');
   toast('↩ Atendimento em curso recuperado');
   // O saldo do talão pode ter mudado entretanto: vai buscá-lo outra vez
   if (s.talao) {
@@ -1839,9 +1884,298 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 window.addEventListener('pagehide', guardarEstado);
 
 
-/* (inventário: sem fichas nem resumo) */
-let FICHA_ATUAL = null, VERIF = null, FICHAS = [];
-function desenharVerif() {} function desenharResumo() {} function carregarFichas() {} function contarFichas() {} function abrirFicha() {}
+/* =====================================================================
+   FICHAS DOS PAIS (versão 1)
+   Entradas: procurar a ficha (nome, email, código ou QR) → verificar peça a peça → passar para o carrinho.
+   A ficha é apagada pelo servidor quando o atendimento fica gravado.
+   ===================================================================== */
+let FICHAS = [], FICHA_ATUAL = null, VERIF = null, URL_FICHA = '';
+const MOTIVOS_NAO = ['Defeito não aceite', 'Não lavada', 'Não cumpre requisitos do Reg.', 'Outro'];
+
+async function carregarFichas() {
+  try {
+    const r = await api('fichas');
+    FICHAS = r.fichas || [];
+    if (r.urlFicha && r.urlFicha !== URL_FICHA) { URL_FICHA = r.urlFicha; desenharLinkFicha(); }
+  } catch (e) { toast('Fichas: ' + e.message); }
+  contarFichas(); listarFichasEnt(); listarFichasTab();
+}
+function contarFichas() {
+  const n = FICHAS.length;
+  document.getElementById('nFic').textContent = n ? '(' + n + ')' : '';
+  document.getElementById('nFichasE').textContent = n ? n + ' por usar' : '';
+  document.getElementById('nFichasT').textContent = n ? '(' + n + ')' : '';
+}
+const filtraFichas = q => { const k = semAcentos(q || ''); return FICHAS.filter(f => !k || semAcentos([f.codigo, f.nome, f.email].join(' ')).includes(k)); };
+function resumoFicha(f) {
+  const np = f.pecas.length, nl = Object.values(f.livros || {}).reduce((a, b) => a + b, 0);
+  return np + (np === 1 ? ' peça' : ' peças') + (nl ? ' · ' + nl + (nl === 1 ? ' livro' : ' livros') : '') + ' · ' + f.data;
+}
+// Entradas: só aparecem quando se escreve (ou as 5 mais recentes)
+function listarFichasEnt() {
+  const box = document.getElementById('fichasLista'), q = document.getElementById('fichaQ').value.trim();
+  box.innerHTML = '';
+  if (VERIF) return;
+  const l = filtraFichas(q).slice(0, q ? 20 : 5);
+  if (!l.length) { box.innerHTML = '<p class="meta">' + (q ? 'Nenhuma ficha encontrada.' : 'Não há fichas por usar.') + '</p>'; return; }
+  l.forEach(f => {
+    const d = document.createElement('div'); d.className = 'ficha-it';
+    d.innerHTML = '<b>' + esc(f.nome) + '</b> · ' + esc(f.codigo) + '<small>' + esc([f.email, resumoFicha(f)].filter(Boolean).join(' · ')) + '</small>';
+    d.onclick = () => abrirFicha(f.codigo);
+    box.appendChild(d);
+  });
+}
+document.getElementById('fichaQ').addEventListener('input', listarFichasEnt);
+
+// Separador Fichas: lista completa, com detalhe e apagar
+function listarFichasTab() {
+  const box = document.getElementById('ficLista'), l = filtraFichas(document.getElementById('ficQ').value.trim());
+  box.innerHTML = '';
+  if (!l.length) { box.innerHTML = '<p class="meta">Não há fichas por usar.</p>'; return; }
+  l.forEach(f => {
+    const d = document.createElement('details'); d.className = 'ficha-it';
+    d.innerHTML = '<summary><b>' + esc(f.nome) + '</b> · ' + esc(f.codigo) + '<small>' + esc([f.email, resumoFicha(f)].filter(Boolean).join(' · ')) + '</small></summary>' +
+      '<ol style="margin:8px 0;padding-left:20px;font-size:.9rem">' + f.pecas.map(p => '<li>' + esc(p.tipo) + ' · ' + (p.tamanho ? 'tam. ' + esc(p.tamanho) : 'sem tamanho') +
+        ' · ' + esc(nomeEst(p.estado)) + (p.defeitos.length ? '<br><small>' + esc(p.defeitos.join(', ')) + '</small>' : '') +
+        (p.nota ? '<br><small>“' + esc(p.nota) + '”</small>' : '') + '</li>').join('') +
+      Object.entries(f.livros || {}).map(([k, q]) => '<li>📚 ' + esc(k) + ' × ' + q + '</li>').join('') + '</ol>' +
+      '<div class="acoes"><button class="btn btn-acc usar">Usar no atendimento</button><button class="btn btn-sai apagar">Apagar</button></div>';
+    d.querySelector('.usar').onclick = () => abrirFicha(f.codigo);
+    d.querySelector('.apagar').onclick = async () => {
+      if (!confirm('Apagar a ficha ' + f.codigo + ' (' + f.nome + ')? Não dá para desfazer.')) return;
+      try { await api('apagarFicha', { codigo: f.codigo }); FICHAS = FICHAS.filter(x => x.codigo !== f.codigo); contarFichas(); listarFichasTab(); listarFichasEnt(); toast('Ficha apagada.'); }
+      catch (e) { toast('Erro: ' + e.message); }
+    };
+    box.appendChild(d);
+  });
+}
+document.getElementById('ficQ').addEventListener('input', listarFichasTab);
+document.getElementById('btnFicAtual').onclick = carregarFichas;
+
+function desenharLinkFicha() {
+  document.getElementById('linkFicha').href = URL_FICHA;
+  const q = document.getElementById('qrFicha'); q.innerHTML = '';
+  try { if (typeof QRCode !== 'undefined') new QRCode(q, { text: URL_FICHA, width: 240, height: 240, correctLevel: QRCode.CorrectLevel.M }); } catch (e) {}
+}
+document.getElementById('btnCopiarFicha').onclick = () => {
+  if (!URL_FICHA) return;
+  if (navigator.clipboard) navigator.clipboard.writeText(URL_FICHA).then(() => toast('Link copiado'), () => prompt('Copia o link:', URL_FICHA));
+  else prompt('Copia o link:', URL_FICHA);
+};
+
+/* ---------- Verificação peça a peça ---------- */
+const tamanhosDoTipo = tipo => unicos(ARTIGOS.filter(a => a.subcategoria === tipo).map(a => a.tamanho)).sort(ordTam);
+async function abrirFicha(codigo) {
+  codigo = String(codigo || '').trim().toUpperCase();
+  if (FICHA_ATUAL && FICHA_ATUAL.codigo !== codigo) { toast('Este atendimento já tem a ficha ' + FICHA_ATUAL.codigo + '. Confirma ou limpa antes de usar outra.'); return; }
+  if (FICHA_ATUAL && FICHA_ATUAL.codigo === codigo) { toast('Esta ficha já está no carrinho.'); return; }
+  if (TAB_ATUAL !== 'ent') await irPara('ent');
+  let f = FICHAS.find(x => x.codigo.toUpperCase() === codigo);
+  if (!f) { await carregarFichas(); f = FICHAS.find(x => x.codigo.toUpperCase() === codigo); }
+  if (!f) { toast('Ficha ' + codigo + ' não encontrada (já usada ou com mais de 14 dias?).'); return; }
+  VERIF = {
+    f, livros: Object.assign({}, f.livros || {}),
+    pecas: f.pecas.map(p => {
+      const t = tipoInfo(p.tipo), ok = estadosDe(t).map(e => e.chave);
+      // se o estado declarado não se aplica a esta peça, fica no pior estado permitido (vocês confirmam)
+      const est = ok.includes(p.estado) ? p.estado : ok[ok.length - 1];
+      const tams = tamanhosDoTipo(p.tipo);
+      // defeito marcado como "Não aceitamos" para esta peça → já vem sugerida como Não aceite (pode mudar-se)
+      return Object.assign({}, p, { est, tam: tams.includes(p.tamanho) ? p.tamanho : '', dec: p.recusa ? 'nao' : null, motivo: p.recusa ? 'Defeito não aceite' : '' });
+    })
+  };
+  desenharVerif();
+  document.getElementById('zonaFichas').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+/* O que a pessoa respondeu nesta peça: cada defeito com o seu estado, e o estado final que daí resulta.
+   ⚠ = defeito que não aceitamos nesta peça, ou estado acima do que aceitamos nesta peça. */
+const estCurto = k => nomeEst(k).split(' · ')[0];
+function respostaPeca(p, declOk) {
+  const det = p.det || p.defeitos.map(t => ({ t }));   // fichas antigas: só os nomes dos defeitos
+  if (!det.length) return 'Respondeu: <b>sem defeitos</b>';
+  const defs = det.map(x => '<b>' + esc(x.t) + '</b>' + (x.e ? ' ' + esc(estCurto(x.e)) : '') +
+    (x.r ? ' <span class="avR">⚠ não aceitamos nesta peça</span>' : '')).join(' · ');
+  return 'Respondeu: ' + defs + '<br>→ estado <b>' + esc(estCurto(p.estado)) + '</b>' +
+    (declOk ? '' : ' <span class="avR">⚠ acima do que aceitamos nesta peça</span>');
+}
+function desenharVerif() {
+  const box = document.getElementById('verif');
+  if (!box) return;
+  box.innerHTML = '';
+  listarFichasEnt();
+  if (!VERIF) return;
+  const V = VERIF, f = V.f, el = document.createElement('div'); el.className = 'verif';
+  el.innerHTML = '<div style="display:flex;gap:8px;align-items:flex-start"><div style="flex:1"><h3>' + esc(f.nome) + ' · ' + esc(f.codigo) + '</h3>' +
+    '<div class="meta" style="margin:0">' + esc([f.email, resumoFicha(f)].filter(Boolean).join(' · ')) + '</div></div><button class="tira" title="Fechar">✕</button></div>' +
+    '<p class="meta" style="margin:6px 0 0">Pega em cada peça (vêm dobradas pela ordem da ficha) e confirma-a ou marca “Não aceite”. Corrige o estado ou o tamanho se for preciso.</p>';
+  el.querySelector('.tira').onclick = () => { VERIF = null; desenharVerif(); };
+  // agrupado por peça e tamanho declarado
+  const grupos = {};
+  V.pecas.forEach(p => { const k = p.tipo + ' · ' + (p.tamanho ? 'tam. ' + p.tamanho : 'sem tamanho'); (grupos[k] = grupos[k] || []).push(p); });
+  Object.entries(grupos).forEach(([k, ps]) => {
+    el.insertAdjacentHTML('beforeend', '<div class="vgrp">' + esc(k) + ' (' + ps.length + ')</div>');
+    ps.forEach(p => {
+      const t = tipoInfo(p.tipo), tams = tamanhosDoTipo(p.tipo), val = precoTipo(p.tipo, p.est);
+      const d = document.createElement('div'); d.className = 'vp' + (p.dec ? ' ' + p.dec : '');
+      const okEst = estadosDe(t), declOk = okEst.some(e => e.chave === p.estado);
+      d.innerHTML = '<div class="l1"><b>#' + p.n + '</b><span>' + (p.nota ? 'Nota: “' + esc(p.nota) + '”' : '') + '</span><span class="val">' + (p.dec === 'nao' ? '—' : val != null ? eur(val) : '⚠ sem preço') + '</span></div>' +
+        '<div class="resp">' + respostaPeca(p, declOk) + '</div>' +
+        '<div class="l2"><select class="vEst" title="Só aparecem os estados que aceitamos nesta peça">' + okEst.map(e => '<option value="' + esc(e.chave) + '"' + (e.chave === p.est ? ' selected' : '') + '>' + esc(e.nome) + (e.chave === p.estado ? ' ← respondeu' : '') + '</option>').join('') + '</select>' +
+          '<select class="vTam"><option value="">s/ tam. (espera)</option>' + tams.map(z => '<option' + (z === p.tam ? ' selected' : '') + '>' + esc(z) + '</option>').join('') + '</select></div>' +
+        '<div class="l3"><button class="ok' + (p.dec === 'ok' ? ' sel' : '') + '">✔ Confere</button><button class="nao' + (p.dec === 'nao' ? ' sel' : '') + '">✕ Não aceite</button>' +
+          (p.dec === 'nao' ? MOTIVOS_NAO.map(m => '<button class="mot' + (p.motivo === m ? ' sel nao' : '') + '">' + esc(m) + '</button>').join('') : '') + '</div>';
+      d.querySelector('.vEst').onchange = e => { p.est = e.target.value; desenharVerif(); };
+      d.querySelector('.vTam').onchange = e => { p.tam = e.target.value; };
+      d.querySelector('.l3 .ok').onclick = () => { p.dec = 'ok'; p.motivo = ''; desenharVerif(); };
+      d.querySelector('.l3 .nao').onclick = () => { p.dec = 'nao'; desenharVerif(); };
+      d.querySelectorAll('.l3 .mot').forEach(b => b.onclick = () => { p.motivo = b.textContent; desenharVerif(); });
+      el.appendChild(d);
+    });
+  });
+  // livros da ficha (podem ser corrigidos)
+  if (LIVROS.some(lv => V.livros[lv.sub]) || Object.keys(V.livros).length) {
+    el.insertAdjacentHTML('beforeend', '<div class="vgrp">📚 Livros</div>');
+    LIVROS.forEach(lv => {
+      const q = V.livros[lv.sub] || 0, d = document.createElement('div'); d.className = 'lv';
+      d.style.cssText = 'display:flex;align-items:center;gap:8px;padding:3px 0';
+      d.innerHTML = '<span style="flex:1">' + esc(lv.sub) + '</span><div class="mini"><button>−</button><span>' + q + '</span><button>+</button></div>';
+      const bs = d.querySelectorAll('button');
+      bs[0].onclick = () => { V.livros[lv.sub] = Math.max(0, q - 1); desenharVerif(); };
+      bs[1].onclick = () => { V.livros[lv.sub] = q + 1; desenharVerif(); };
+      el.appendChild(d);
+    });
+  }
+  const falta = V.pecas.filter(p => !p.dec || (p.dec === 'nao' && !p.motivo)).length;
+  const b = document.createElement('button'); b.className = 'btn btn-acc'; b.style.marginTop = '10px';
+  b.disabled = falta > 0;
+  b.textContent = falta ? 'Falta verificar ' + falta + (falta === 1 ? ' peça' : ' peças') : '➜ Passar para o carrinho';
+  b.onclick = passarFichaParaCarro;
+  el.appendChild(b);
+  box.appendChild(el);
+}
+function passarFichaParaCarro() {
+  const V = VERIF; if (!V) return;
+  let n = 0;
+  const recusadas = [];
+  V.pecas.forEach(p => {
+    if (p.dec === 'nao') { recusadas.push('#' + p.n + ' ' + p.tipo + (p.tam ? ' ' + p.tam : '') + ' (' + p.motivo + ')'); return; }
+    const a = p.tam ? ARTIGOS.find(x => x.subcategoria === p.tipo && x.tamanho === p.tam) : null;
+    if (a) { const k = chaveC(a.id, p.est); CARRO.entrega[k] = (CARRO.entrega[k] || 0) + 1; }
+    else { const k = chaveC(p.tipo, p.est); CARRO.espera[k] = (CARRO.espera[k] || 0) + 1; }
+    n++;
+  });
+  Object.entries(V.livros).forEach(([sub, q]) => { if (q > 0) CARRO_LIV.entrega[sub] = (CARRO_LIV.entrega[sub] || 0) + q; });
+  FICHA_ATUAL = { codigo: V.f.codigo, nome: V.f.nome, recusadas };
+  VERIF = null; idPendente = null;
+  desenharVerif(); desenharAt();
+  toast('⬇ ' + n + (n === 1 ? ' peça' : ' peças') + ' da ficha ' + FICHA_ATUAL.codigo + ' no carrinho' + (recusadas.length ? ' · ' + recusadas.length + ' não aceite(s)' : ''));
+}
+
+/* ---------- Resumo (separador Resumo) ---------- */
+function desenharResumo(c) {
+  const ul = document.getElementById('resumoLista'), fi = document.getElementById('fichaInfo');
+  if (!ul) return;
+  fi.innerHTML = FICHA_ATUAL ? '<div class="aviso" style="background:#e3f2ec;color:#155443;margin:0 0 8px">📋 Ficha <b>' + esc(FICHA_ATUAL.codigo) + '</b> · ' + esc(FICHA_ATUAL.nome) +
+    ' — é apagada quando confirmares.' + (FICHA_ATUAL.recusadas.length ? '<br>Não aceites: ' + esc(FICHA_ATUAL.recusadas.join('; ')) : '') + '</div>' : '';
+  const li = (txt, v) => '<li><span>' + txt + '</span><b>' + eur(v) + '</b></li>';
+  let h = '';
+  const sai = Object.entries(CARRO.leva), ent = Object.entries(CARRO.entrega), esp = Object.entries(CARRO.espera);
+  const livS = LIVROS.filter(lv => CARRO_LIV.leva[lv.sub]), livE = LIVROS.filter(lv => CARRO_LIV.entrega[lv.sub]);
+  if (sai.length || livS.length) {
+    h += '<li class="rt">⬆ Saídas</li>';
+    sai.forEach(([k, q]) => { const [id, e] = partes(k), a = art(id); if (a) h += li(q + '× ' + esc(nomeArtigo(a)) + ' ' + esc(a.tamanho) + ' · ' + esc(nomeEst(e).split(' · ')[0]), q * (precoEst(a, e) || 0)); });
+    livS.forEach(lv => { const q = CARRO_LIV.leva[lv.sub]; h += li(q + '× 📚 ' + esc(lv.sub), q * lv.preco); });
+  }
+  if (ent.length || esp.length || livE.length) {
+    h += '<li class="rt">⬇ Entradas</li>';
+    ent.forEach(([k, q]) => { const [id, e] = partes(k), a = art(id); if (a) h += li(q + '× ' + esc(nomeArtigo(a)) + ' ' + esc(a.tamanho) + ' · ' + esc(nomeEst(e).split(' · ')[0]), q * (precoEst(a, e) || 0)); });
+    esp.forEach(([k, q]) => { const [sub, e] = partes(k); h += li(q + '× ' + esc(sub) + ' ⏳ s/ tam. · ' + esc(nomeEst(e).split(' · ')[0]), q * (precoTipo(sub, e) || 0)); });
+    livE.forEach(lv => { const q = CARRO_LIV.entrega[lv.sub]; h += li(q + '× 📚 ' + esc(lv.sub), q * lv.preco); });
+  }
+  ul.innerHTML = h || '<li class="meta">Ainda nada. Junta peças em Saídas e Entradas.</li>';
+}
+
+/* ---------- Atendimento e Inventário no mesmo ecrã (troca instantânea, um só login) ---------- */
+document.querySelectorAll('.modos button').forEach(b => b.onclick = () => irPara(ULTIMO_TAB[b.dataset.modo]));
+document.body.dataset.app = MODO_INICIAL;
+
+/* ---------- Medir como gaveta por cima do atendimento ---------- */
+const gavetaAberta = () => document.getElementById('tabMed').classList.contains('gaveta');
+function abrirGaveta() {
+  if (typeof fecharForms === 'function') fecharForms();
+  const t = document.getElementById('tabMed');
+  t.classList.add('gaveta'); t.classList.remove('hidden');
+  document.getElementById('fundoGaveta').classList.remove('hidden');
+  desenharMedir();
+}
+function fecharGaveta() {
+  const t = document.getElementById('tabMed');
+  if (!t || !t.classList.contains('gaveta')) return;
+  t.classList.remove('gaveta');
+  if (TAB_ATUAL !== 'med') t.classList.add('hidden');
+  document.getElementById('fundoGaveta').classList.add('hidden');
+}
+document.getElementById('btnMedir').onclick = () => gavetaAberta() ? fecharGaveta() : abrirGaveta();
+document.getElementById('btnFecharGaveta').onclick = fecharGaveta;
+document.getElementById('fundoGaveta').onclick = fecharGaveta;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharGaveta(); });
+
+/* ---------- Manuais: abre sempre no mesmo separador do navegador, que fica aberto ---------- */
+const URL_MANUAIS = 'https://aorosa2026.github.io/stock-livros/';
+try { window.name = 'fardasv1'; } catch (e) {}   // a app dos manuais volta a este separador pelo nome
+document.getElementById('btnManuais').onclick = () => {
+  const w = window.open('', 'manuais');
+  if (!w) { location.href = URL_MANUAIS; return; }           // bloqueado: abre aqui mesmo
+  let vazio = true;
+  try { vazio = !w.location.href || w.location.href === 'about:blank'; } catch (e) { vazio = false; }
+  if (vazio) w.location.href = URL_MANUAIS;                  // 1.ª vez: carrega; depois só muda de separador
+  try { w.focus(); } catch (e) {}
+};
+
+/* ---------- Formulários (novo crédito e entregas) numa gaveta, já carregados ----------
+   Os links vêm do servidor depois da palavra-passe (não estão no GitHub).
+   Carregam em segundo plano pouco depois de entrar; ao abrir, aparecem logo.
+   Depois de enviar uma resposta, ao fechar a gaveta o formulário volta a ficar em branco para a próxima. */
+let FORMS = { credito: '', entregas: '' }, FORM_ATUAL = 'credito';
+const CARGAS = { credito: 0, entregas: 0 };
+const urlEmbutido = u => /docs\.google\.com\/forms\//.test(u) ? u + (u.includes('?') ? '&' : '?') + 'embedded=true' : u;
+function carregarForm(f) { const fr = document.getElementById('ifr_' + f); if (!FORMS[f] || !fr) return; CARGAS[f] = 0; fr.src = urlEmbutido(FORMS[f]); }
+function prepararForms() {
+  const tem = ['credito', 'entregas'].filter(f => FORMS[f]);
+  document.getElementById('btnForms').classList.toggle('hidden', !tem.length);
+  document.querySelectorAll('.gfTabs button').forEach(b => b.classList.toggle('hidden', !FORMS[b.dataset.f]));
+  if (!FORMS[FORM_ATUAL] && tem.length) FORM_ATUAL = tem[0];
+  setTimeout(() => tem.forEach(f => { if (!document.getElementById('ifr_' + f).src) carregarForm(f); }), 2500);
+}
+['credito', 'entregas'].forEach(f => { const fr = document.getElementById('ifr_' + f); if (fr) fr.addEventListener('load', () => { if (fr.src) CARGAS[f]++; }); });
+function mostrarForm(f) {
+  FORM_ATUAL = f;
+  ['credito', 'entregas'].forEach(x => document.getElementById('ifr_' + x).classList.toggle('hidden', x !== f));
+  document.querySelectorAll('.gfTabs button').forEach(b => b.classList.toggle('sel', b.dataset.f === f));
+  document.getElementById('gfAbrir').href = FORMS[f] || '#';
+  if (!document.getElementById('ifr_' + f).src) carregarForm(f);
+}
+function abrirForms(f) {
+  fecharGaveta();
+  mostrarForm(f || FORM_ATUAL);
+  document.getElementById('gavetaForm').classList.remove('hidden');
+  document.getElementById('fundoGaveta').classList.remove('hidden');
+}
+function fecharForms() {
+  const g = document.getElementById('gavetaForm');
+  if (g.classList.contains('hidden')) return;
+  g.classList.add('hidden');
+  document.getElementById('fundoGaveta').classList.add('hidden');
+  // mais de uma carga = a resposta foi enviada → volta a pôr o formulário em branco
+  ['credito', 'entregas'].forEach(f => { if (CARGAS[f] > 1) carregarForm(f); });
+}
+document.getElementById('btnForms').onclick = () => document.getElementById('gavetaForm').classList.contains('hidden') ? abrirForms() : fecharForms();
+document.querySelectorAll('.gfTabs button').forEach(b => b.onclick = () => mostrarForm(b.dataset.f));
+document.getElementById('gfFechar').onclick = fecharForms;
+document.getElementById('fundoGaveta').addEventListener('click', fecharForms);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharForms(); });
+// o link "Novo talão" do Resumo também abre a gaveta
+document.getElementById('linkForm').addEventListener('click', e => { if (FORMS.credito) { e.preventDefault(); abrirForms('credito'); } });
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function toast(t) { const m = document.getElementById('msg'); m.textContent = t; m.style.display = 'block'; clearTimeout(m._t); m._t = setTimeout(() => m.style.display = 'none', 3200); }

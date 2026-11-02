@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leitor de Fichas em Papel · Banco de Fardas</title>
+<style>
+  :root{--bg:#f6f4ef;--card:#fff;--ink:#1f2a2e;--mut:#6b7478;--line:#e2ded5;--acc:#d9a21b;--acc2:#fbf1d6;--accink:#6b4a00;--warn:#b5651d;--warnbg:#fdf1e4;--bad:#a33;}
+  *{box-sizing:border-box}
+  body{margin:0;font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:var(--acc);color:var(--ink);padding:14px 16px;position:sticky;top:0;z-index:5}
+  header h1{margin:0;font-size:18px} header small{opacity:.8}
+  main{max-width:760px;margin:0 auto;padding:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+  label{display:block;font-size:13px;color:var(--mut);margin:8px 0 4px}
+  input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
+  select.vazio{border-color:var(--bad);background:#fde8e8}
+  button{font:inherit;border:0;border-radius:10px;padding:12px 16px;cursor:pointer}
+  .btn{background:var(--acc);color:var(--ink);width:100%;font-weight:600} .btn:disabled{opacity:.6}
+  .btn2{background:var(--acc2);color:var(--accink)}
+  .row{display:flex;gap:8px}.row>*{flex:1}
+  .hide{display:none!important}
+  .foto{width:100%;border-radius:8px;border:1px solid var(--line);margin-top:10px}
+  .peca{border-left:4px solid var(--acc)} .peca.incerto{border-left-color:var(--warn);background:var(--warnbg)}
+  .peca h3{margin:0 0 4px;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+  .escrito{font-size:13px;color:var(--mut)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .chip{padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:13px;color:var(--mut);text-align:left}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .chip.rec.on{background:var(--bad);border-color:var(--bad)}
+  .estado{margin-top:10px;font-size:14px;font-weight:600}
+  .recusa{color:var(--bad);font-size:13px;margin-top:4px}
+  .nota{font-size:13px;color:var(--warn);margin-top:6px}
+  .x{background:none;color:var(--bad);padding:4px 8px;font-size:13px}
+  .msg{padding:10px 12px;border-radius:8px;margin:10px 0;font-size:14px}
+  .msg.err{background:#fde8e8;color:var(--bad)} .msg.ok{background:var(--acc2);color:var(--accink)}
+  .msg.ok b{font-size:22px;letter-spacing:1px}
+  .spin{display:inline-block;width:18px;height:18px;border:3px solid currentColor;border-right-color:transparent;border-radius:50%;animation:r 1s linear infinite;vertical-align:-3px;margin-right:8px}
+  @keyframes r{to{transform:rotate(360deg)}}
+  .barra{position:sticky;bottom:0;background:var(--bg);padding:10px 0}
+</style>
+</head>
+<body>
+<header><h1>Leitor de Fichas em Papel</h1><small>Banco de Fardas · cria uma ficha F-xxxx para o Atendimento</small></header>
+<main>
+
+  <section id="vLogin" class="card">
+    <label for="pass">Palavra-passe (a mesma do Atendimento)</label>
+    <input id="pass" type="password" autocomplete="current-password">
+    <div style="height:10px"></div>
+    <button class="btn" id="bEntrar">Entrar</button>
+    <div id="mLogin"></div>
+  </section>
+
+  <section id="vFoto" class="card hide">
+    <div id="mFoto"></div>
+    <p style="margin-top:0">Fotografe a ficha inteira, de cima, com boa luz e sem sombras.</p>
+    <input id="fFoto" type="file" accept="image/*,application/pdf" capture="environment" class="hide">
+    <button class="btn" id="bFoto">📷 Fotografar / escolher ficha</button>
+    <img id="imgPrev" class="foto hide" alt="Pré-visualização da ficha">
+  </section>
+
+  <section id="vRev" class="hide">
+    <div class="card">
+      <label>Código escrito na ficha (pelo Banco)</label>
+      <input id="rCodigo" placeholder="opcional">
+      <label>Nº de livros</label>
+      <div class="row">
+        <div><small>PNL</small><input id="rPnl" type="number" min="0" inputmode="numeric"></div>
+        <div><small>EMRC</small><input id="rEmrc" type="number" min="0" inputmode="numeric"></div>
+        <div><small>Catequese</small><input id="rCat" type="number" min="0" inputmode="numeric"></div>
+      </div>
+      <details style="margin-top:10px"><summary style="font-size:14px;color:var(--mut)">Ver fotografia</summary>
+        <img id="imgRev" class="foto" alt="Ficha fotografada"></details>
+    </div>
+    <div id="lista"></div>
+    <button class="btn2" id="bAdd" style="width:100%">+ Acrescentar peça</button>
+    <div class="barra">
+      <div id="mRev"></div>
+      <div class="row">
+        <button class="btn2" id="bNova">Nova foto</button>
+        <button class="btn" id="bGuardar">Criar ficha</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+// ⚙️ URL /exec do projeto AtendimentoAPP (o mesmo do Atendimento, ou o de uma implementação de teste)
+let SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzdyrPY7vPXbtsK8dfm-8NrVsngGv5mNhZVe80yz5Wn3WSXyksHRAg51w3l6S9P6Wx2/exec';
+
+// LEITOR PAPEL: aberto dentro do Atendimento → recebe de lá a palavra-passe e o link (não é preciso escrevê-la outra vez)
+const EMBUTIDO = window.parent !== window && /embutido=1/.test(location.search);
+
+const $ = id => document.getElementById(id);
+let PW = '', CAT = null, FICHA = null, imgDataUrl = '';
+const msg = (el, txt, tipo) => { $(el).innerHTML = txt ? `<div class="msg ${tipo||'err'}">${txt}</div>` : ''; };
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const show = v => { ['vLogin','vFoto','vRev'].forEach(x => $(x).classList.toggle('hide', x !== v)); scrollTo(0,0); };
+
+async function api(body){
+  const r = await fetch(SCRIPT_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ ...body, pw: PW }) });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.erro || 'Erro');
+  return j;
+}
+
+/* ---------- Entrar ---------- */
+try { PW = sessionStorage.getItem('lf_pw') || ''; } catch(e){}
+$('bEntrar').onclick = async () => {
+  PW = $('pass').value;
+  $('bEntrar').innerHTML = '<span class="spin"></span>A entrar…';
+  try {
+    CAT = (await api({ acao:'papelCatalogo' })).catalogo;
+    try { sessionStorage.setItem('lf_pw', PW); } catch(e){}
+    show('vFoto');
+  } catch(e){ msg('mLogin', esc(e.message)); }
+  $('bEntrar').textContent = 'Entrar';
+};
+$('pass').onkeydown = e => { if (e.key === 'Enter') $('bEntrar').click(); };
+if (PW) { $('pass').value = PW; $('bEntrar').click(); }
+// LEITOR PAPEL
+if (EMBUTIDO) {
+  document.querySelector('header').classList.add('hide');
+  window.addEventListener('message', e => {
+    if (e.origin !== location.origin || e.source !== window.parent) return;   // só o Atendimento (mesmo endereço)
+    const d = e.data || {};
+    if (d.tipo !== 'atendimentoPw' || !d.pw) return;
+    if (d.url) SCRIPT_URL = d.url;
+    if (CAT) return;                                                       // já entrou
+    $('pass').value = d.pw; $('bEntrar').click();
+  });
+  window.parent.postMessage({ tipo: 'leitorPronto' }, location.origin);
+}
+
+/* ---------- Fotografia ---------- */
+$('bFoto').onclick = () => $('fFoto').click();
+$('fFoto').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  msg('mFoto','');
+  try {
+    let mime = 'image/jpeg';
+    if (f.type === 'application/pdf') { imgDataUrl = await lerFicheiro(f); mime = 'application/pdf'; $('imgPrev').classList.add('hide'); }
+    else { imgDataUrl = await reduzir(f, 2200, 0.85); $('imgPrev').src = imgDataUrl; $('imgPrev').classList.remove('hide'); }
+    $('bFoto').innerHTML = '<span class="spin"></span>A ler a ficha… (10–30 s)'; $('bFoto').disabled = true;
+    FICHA = (await api({ acao:'papelLer', imagem: imgDataUrl.split(',')[1], mime })).ficha;
+    abrirRevisao();
+  } catch(err){ msg('mFoto', 'Não foi possível ler: ' + esc(err.message)); }
+  $('bFoto').textContent = '📷 Fotografar / escolher ficha'; $('bFoto').disabled = false; e.target.value = '';
+};
+function lerFicheiro(f){ return new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = ko; r.readAsDataURL(f); }); }
+async function reduzir(file, max, q){
+  const img = await new Promise(async (ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = await lerFicheiro(file); });
+  const s = Math.min(1, max / Math.max(img.width, img.height));
+  const c = document.createElement('canvas'); c.width = Math.round(img.width*s); c.height = Math.round(img.height*s);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', q);
+}
+
+/* ---------- Revisão (mesmas regras da ficha online) ---------- */
+const tipoDe = nome => CAT.tipos.find(t => t.tipo === nome);
+function defeitosDe(t){ return CAT.defeitos.filter(d => !t || !(t.ocultos||[]).includes(d.texto)); }
+function avaliar(p){
+  const t = tipoDe(p.tipo), ordem = CAT.estados.map(e => e.chave);
+  let est = ordem[0];
+  const marc = CAT.defeitos.filter(d => p.defeitos.includes(d.texto) && (!t || !(t.ocultos||[]).includes(d.texto)));
+  marc.forEach(d => { if (ordem.indexOf(d.estado) > ordem.indexOf(est)) est = d.estado; });
+  const e = CAT.estados.find(x => x.chave === est) || {};
+  const recusa = !!t && (marc.some(d => (t.recusa||[]).includes(d.texto)) || ((t.estadosOk||[]).length && !t.estadosOk.includes(est)));
+  return { texto: `${e.bola ? e.bola + ' ' : ''}${e.cod ? e.cod + ' · ' : ''}${e.nome || est}`, recusa };
+}
+
+function abrirRevisao(){
+  $('rCodigo').value = FICHA.codigo || '';
+  const L = FICHA.livros || {};
+  $('rPnl').value = L.pnl || 0; $('rEmrc').value = L.emrc || 0; $('rCat').value = L.catequese || 0;
+  $('imgRev').src = imgDataUrl.startsWith('data:image') ? imgDataUrl : '';
+  FICHA.pecas = (FICHA.pecas || []).map(p => ({ ...p, defeitos: p.defeitos || [] }));
+  desenhar(); show('vRev'); avisos();
+}
+function avisos(){
+  const inc = FICHA.pecas.filter(p => p.incerto).length, semTipo = FICHA.pecas.filter(p => !p.tipo).length;
+  const t = [];
+  if (semTipo) t.push(`${semTipo} peça(s) sem tipo reconhecido — escolha na lista (a vermelho).`);
+  if (inc) t.push(`${inc} peça(s) com leitura duvidosa — a laranja. Confirme com a ficha.`);
+  msg('mRev', t.join('<br>'), 'err');
+}
+
+function opcoesTipo(sel){
+  const grupos = [...new Set(CAT.tipos.map(t => t.grupo))];
+  return `<option value="">— escolher peça —</option>` + grupos.map(g => `<optgroup label="${esc(g)}">` +
+    CAT.tipos.filter(t => t.grupo === g).map(t => `<option ${t.tipo===sel?'selected':''}>${esc(t.tipo)}</option>`).join('') + '</optgroup>').join('');
+}
+function opcoesTam(p){
+  const t = tipoDe(p.tipo), tams = t ? t.tamanhos : [];
+  return `<option value="">Sem tamanho / NS</option>` + tams.map(x => `<option ${x===p.tamanho?'selected':''}>${esc(x)}</option>`).join('');
+}
+
+function desenhar(){
+  $('lista').innerHTML = FICHA.pecas.map((p, i) => {
+    const t = tipoDe(p.tipo), av = avaliar(p);
+    const lidoTam = p.tamanhoLido && p.tamanhoLido !== p.tamanho ? ` · tamanho escrito: “${esc(p.tamanhoLido)}”` : '';
+    return `<div class="card peca ${p.incerto ? 'incerto' : ''}" data-i="${i}">
+      <h3><span>Peça ${p.n}</span><button class="x" data-del="${i}">Remover</button></h3>
+      <div class="escrito">${p.escrito ? `Escrito: “${esc(p.escrito)}”` : ''}${lidoTam}</div>
+      <div class="row">
+        <div><label>Peça</label><select data-f="tipo" class="${p.tipo ? '' : 'vazio'}">${opcoesTipo(p.tipo)}</select></div>
+        <div style="flex:.5"><label>Tamanho</label><select data-f="tamanho">${opcoesTam(p)}</select></div>
+      </div>
+      <div class="chips">${defeitosDe(t).map(d => `<button class="chip ${t && (t.recusa||[]).includes(d.texto) ? 'rec' : ''} ${p.defeitos.includes(d.texto)?'on':''}" data-d="${esc(d.texto)}">${esc(d.texto)}</button>`).join('')}</div>
+      <div class="estado">${av.texto}</div>
+      ${av.recusa ? '<div class="recusa">⚠️ Esta peça, com estes defeitos, não é aceite.</div>' : ''}
+      ${p.nota ? `<div class="nota">📝 ${esc(p.nota)}</div>` : ''}
+    </div>`;
+  }).join('') || '<div class="card">Não foram encontradas peças. Acrescente-as à mão.</div>';
+}
+
+$('lista').addEventListener('click', e => {
+  const card = e.target.closest('.peca'); if (!card) return;
+  if (e.target.dataset.del !== undefined) { FICHA.pecas.splice(+e.target.dataset.del, 1); desenhar(); avisos(); return; }
+  const d = e.target.dataset.d; if (!d) return;
+  const p = FICHA.pecas[+card.dataset.i];
+  p.defeitos = p.defeitos.includes(d) ? p.defeitos.filter(x => x !== d) : [...p.defeitos, d];
+  p.incerto = false; desenhar(); avisos();
+});
+$('lista').addEventListener('change', e => {
+  const card = e.target.closest('.peca'), f = e.target.dataset.f; if (!card || !f) return;
+  const p = FICHA.pecas[+card.dataset.i]; p[f] = e.target.value;
+  if (f === 'tipo') { const t = tipoDe(p.tipo); if (!t || !t.tamanhos.includes(p.tamanho)) p.tamanho = (t && t.tamanhos.find(x => x.toUpperCase() === String(p.tamanhoLido||'').toUpperCase())) || ''; }
+  desenhar(); avisos();
+});
+$('bAdd').onclick = () => {
+  const n = FICHA.pecas.reduce((m, p) => Math.max(m, p.n), 0) + 1;
+  FICHA.pecas.push({ n, escrito:'', tipo:'', tamanho:'', tamanhoLido:'', defeitos:[], incerto:false, nota:'' });
+  desenhar(); avisos(); window.scrollTo(0, document.body.scrollHeight);
+};
+$('bNova').onclick = () => { FICHA = null; msg('mFoto',''); show('vFoto'); };
+
+$('bGuardar').onclick = async () => {
+  const sem = FICHA.pecas.filter(p => !p.tipo);
+  if (sem.length) { msg('mRev', `Escolha a peça nº ${sem.map(p => p.n).join(', ')} (ou remova-a).`); return; }
+  const ficha = { codigo: $('rCodigo').value.trim(), pecas: FICHA.pecas,
+    livros: { pnl: +$('rPnl').value||0, emrc: +$('rEmrc').value||0, catequese: +$('rCat').value||0 } };
+  $('bGuardar').innerHTML = '<span class="spin"></span>A criar…'; $('bGuardar').disabled = true;
+  try {
+    const j = await api({ acao:'papelGravar', ficha });
+    FICHA = null; $('imgPrev').classList.add('hide'); show('vFoto');
+    // LEITOR PAPEL: avisa o Atendimento (o mesmo aviso da ficha online) → abre logo nas Entradas
+    try { if (window.top !== window.self) window.top.postMessage({ tipo: 'fichaEnviada', codigo: j.codigo }, '*'); } catch (e) {}
+    msg('mFoto', `Ficha criada: <b>${esc(j.codigo)}</b><br>${j.pecas} peça(s). No Atendimento, abra-a em Fichas (procure “${esc(j.codigo)}”${ficha.codigo ? ' ou “Papel ' + esc(ficha.codigo) + '”' : ''}).`, 'ok');
+  } catch(err){ msg('mRev', 'Erro ao criar: ' + esc(err.message)); }
+  $('bGuardar').textContent = 'Criar ficha'; $('bGuardar').disabled = false;
+};
+</script>
+</body>
+</html>

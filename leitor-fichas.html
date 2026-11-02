@@ -31,6 +31,8 @@
   .estado{margin-top:10px;font-size:14px;font-weight:600}
   .recusa{color:var(--bad);font-size:13px;margin-top:4px}
   .nota{font-size:13px;color:var(--warn);margin-top:6px}
+  .fora{margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--warnbg);border:1px solid var(--warn);font-size:13px}
+  .fora .row{margin-top:6px} .fora button{padding:7px 10px;font-size:13px}
   .x{background:none;color:var(--bad);padding:4px 8px;font-size:13px}
   .msg{padding:10px 12px;border-radius:8px;margin:10px 0;font-size:14px}
   .msg.err{background:#fde8e8;color:var(--bad)} .msg.ok{background:var(--acc2);color:var(--accink)}
@@ -170,6 +172,9 @@ function avaliar(p){
   return { texto: `${e.bola ? e.bola + ' ' : ''}${e.cod ? e.cod + ' · ' : ''}${e.nome || est}`, recusa };
 }
 
+// LEITOR PAPEL: defeito marcado no papel que, nesta peça, está como "Não aparece" na folha Defeitos
+const foraDaLista = p => { const t = tipoDe(p.tipo); return t ? p.defeitos.filter(d => (t.ocultos||[]).includes(d)) : []; };
+
 function abrirRevisao(){
   $('rCodigo').value = FICHA.codigo || '';
   const L = FICHA.livros || {};
@@ -183,6 +188,8 @@ function avisos(){
   const t = [];
   if (semTipo) t.push(`${semTipo} peça(s) sem tipo reconhecido — escolha na lista (a vermelho).`);
   if (inc) t.push(`${inc} peça(s) com leitura duvidosa — a laranja. Confirme com a ficha.`);
+  const fl = FICHA.pecas.filter(p => foraDaLista(p).length).length;
+  if (fl) t.push(`${fl} peça(s) com defeito marcado que não faz parte da lista dessa peça — escolha "Ignorar" ou "Manter como nota".`);
   msg('mRev', t.join('<br>'), 'err');
 }
 
@@ -211,12 +218,20 @@ function desenhar(){
       <div class="estado">${av.texto}</div>
       ${av.recusa ? '<div class="recusa">⚠️ Esta peça, com estes defeitos, não é aceite.</div>' : ''}
       ${p.nota ? `<div class="nota">📝 ${esc(p.nota)}</div>` : ''}
+      ${foraDaLista(p).map(d => `<div class="fora">⚠️ Marcado na ficha: <b>${esc(d)}</b> — este defeito não faz parte da lista desta peça. Confirme com a peça:
+        <div class="row"><button class="btn2" data-fl="ignorar" data-dt="${esc(d)}">Ignorar</button><button class="btn2" data-fl="nota" data-dt="${esc(d)}">Manter como nota</button></div></div>`).join('')}
     </div>`;
   }).join('') || '<div class="card">Não foram encontradas peças. Acrescente-as à mão.</div>';
 }
 
 $('lista').addEventListener('click', e => {
   const card = e.target.closest('.peca'); if (!card) return;
+  if (e.target.dataset.fl) {                          // LEITOR PAPEL: resolver defeito fora da lista
+    const p = FICHA.pecas[+card.dataset.i], d = e.target.dataset.dt;
+    p.defeitos = p.defeitos.filter(x => x !== d);
+    if (e.target.dataset.fl === 'nota') p.nota = [p.nota, d + ' (fora da lista)'].filter(Boolean).join(' · ');
+    desenhar(); avisos(); return;
+  }
   if (e.target.dataset.del !== undefined) { FICHA.pecas.splice(+e.target.dataset.del, 1); desenhar(); avisos(); return; }
   const d = e.target.dataset.d; if (!d) return;
   const p = FICHA.pecas[+card.dataset.i];
@@ -239,6 +254,8 @@ $('bNova').onclick = () => { FICHA = null; msg('mFoto',''); show('vFoto'); };
 $('bGuardar').onclick = async () => {
   const sem = FICHA.pecas.filter(p => !p.tipo);
   if (sem.length) { msg('mRev', `Escolha a peça nº ${sem.map(p => p.n).join(', ')} (ou remova-a).`); return; }
+  const fl = FICHA.pecas.filter(p => foraDaLista(p).length);
+  if (fl.length) { msg('mRev', `Peça nº ${fl.map(p => p.n).join(', ')}: há um defeito fora da lista dessa peça. Escolha "Ignorar" ou "Manter como nota".`); return; }
   const ficha = { codigo: $('rCodigo').value.trim(), pecas: FICHA.pecas,
     livros: { pnl: +$('rPnl').value||0, emrc: +$('rEmrc').value||0, catequese: +$('rCat').value||0 } };
   $('bGuardar').innerHTML = '<span class="spin"></span>A criar…'; $('bGuardar').disabled = true;

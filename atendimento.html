@@ -116,6 +116,24 @@
   #avisoSaco { position:fixed; left:50%; bottom:90px; transform:translateX(-50%); z-index:90; background:#1f2a2e; color:#fff; border-radius:14px; padding:12px 16px; text-align:center; box-shadow:0 6px 24px rgba(0,0,0,.3); min-width:240px; }
   #avisoSaco b { display:block; font-size:1.8rem; letter-spacing:1px; margin:4px 0 8px; } #avisoSaco button { border:0; background:#fff; color:#1f2a2e; border-radius:999px; padding:7px 22px; font:inherit; font-weight:800; cursor:pointer; }
   #avisoSaco.hidden { display:none; }
+  /* ⚙️ Personalizar: o que cada pessoa escolheu esconder */
+  .tituloSimples { display:none; flex:1; font-size:1rem; } body.aj-sem-inv .tituloSimples { display:block; }
+  body.aj-sem-inv .modos, body.aj-sem-inv #navInv { display:none !important; }
+  body.aj-sem-fic #navAt button[data-tab="fic"], body.aj-sem-fic #zonaFichas { display:none !important; }
+  body.aj-sem-papel #btnPapel, body.aj-sem-medir #btnMedir, body.aj-sem-forms #btnForms, body.aj-sem-manuais #btnManuais { display:none !important; }
+  body.aj-sem-stock #btnStock, body.aj-sem-stock #avisoSemStock { display:none !important; }
+  body.aj-sem-qr #zonaFichas > p.meta:last-child { display:none; }
+  @media (max-width:440px) { .hdrUni .hdrBtn { width:30px; height:30px; font-size:.88rem; } .hdrUni { gap:3px; } .modos button { font-size:.78rem; padding:7px 3px; } .hdrUni .sair { font-size:.8rem; } }
+  body.aj-sem-livros section.bloco.liv, body.aj-sem-qr #scanA, body.aj-sem-qr #leitorA { display:none !important; }
+  #painelAjustes { position:fixed; inset:0; z-index:95; } #painelAjustes.hidden { display:none; }
+  #painelAjustes .ajFundo { position:absolute; inset:0; background:rgba(0,0,0,.35); }
+  #painelAjustes .ajCaixa { position:absolute; top:0; right:0; bottom:0; width:min(420px,100%); background:var(--bg, #f6f4ef); padding:12px 14px; overflow:auto; box-shadow:-6px 0 24px rgba(0,0,0,.2); }
+  .ajTopo { display:flex; justify-content:space-between; align-items:center; font-size:1.1rem; }
+  .ajPresets { display:flex; gap:8px; margin-bottom:12px; }
+  .ajP { flex:1; border:2px solid var(--line); background:#fff; border-radius:12px; padding:10px; font:inherit; font-weight:800; cursor:pointer; text-align:center; }
+  .ajP small { display:block; font-weight:400; color:var(--muted); font-size:.78rem; } .ajP.sel { border-color:var(--acc); background:#e3f2ec; }
+  .ajL { display:flex; gap:10px; align-items:flex-start; background:#fff; border:1px solid var(--line); border-radius:10px; padding:9px 10px; margin-bottom:6px; cursor:pointer; }
+  .ajL input { width:20px; height:20px; margin-top:2px; flex:none; } .ajL small { display:block; color:var(--muted); font-size:.8rem; }
   .avisoSemStock { background:#fbe9e7; color:#7a2318; border-radius:10px; padding:7px 10px; font-size:.86rem; margin:0 0 8px; }
   .chip.semTam { background:#fff6db; border-color:#e6cf8a; color:#7a5a00; }
   .chip.semTam.sel { background:#b8860b; border-color:#b8860b; color:#fff; }
@@ -300,7 +318,7 @@
 
   <!-- ===== App ===== -->
   <section id="ecraApp" class="hidden">
-    <header class="hdrUni"><div class="modos"><button data-modo="at"><span class="ico">🧾 </span>Atendimento</button><button data-modo="inv"><span class="ico">👕 </span>Inventário</button></div><button id="btnStock" class="hdrBtn" title="Stock ligado / desligado">📦</button><button id="btnMedir" class="hdrBtn" title="Medir (abre por cima, sem sair do atendimento)">📏</button><button id="btnForms" class="hdrBtn hidden" title="Formulários: novo crédito e entregas (abrem por cima, já carregados)">📝</button><button id="btnManuais" class="hdrBtn" title="Manuais (abre noutro separador, que fica aberto)">📚</button><button class="sair" id="btnSair">sair</button></header>
+    <header class="hdrUni"><b class="tituloSimples">🧾 Banco de Fardas</b><div class="modos"><button data-modo="at"><span class="ico">🧾 </span>Atendimento</button><button data-modo="inv"><span class="ico">👕 </span>Inventário</button></div><button id="btnStock" class="hdrBtn" title="Stock ligado / desligado">📦</button><button id="btnMedir" class="hdrBtn" title="Medir (abre por cima, sem sair do atendimento)">📏</button><button id="btnForms" class="hdrBtn hidden" title="Formulários: novo crédito e entregas (abrem por cima, já carregados)">📝</button><button id="btnManuais" class="hdrBtn" title="Manuais (abre noutro separador, que fica aberto)">📚</button><button id="btnAjustes" class="hdrBtn" title="Personalizar: escolher o que aparece">⚙️</button><button class="sair" id="btnSair">sair</button></header>
 
     <nav class="tabs" id="navAt">
       <button data-tab="sai">⬆ Saídas</button>
@@ -566,7 +584,7 @@ async function entrar(automatico) {
     desenharFiltros(); filtrar();
     // Se o QR tiver o link da página com ?id=..., abre logo a ficha
     const idLink = new URLSearchParams(location.search).get('id');
-    await irPara(MODO_INICIAL === 'at' ? 'sai' : 'inv');
+    await irPara(MODO_INICIAL === 'at' || !AJ.inv ? 'sai' : 'inv');
     if (idLink) abrirPorCodigo(idLink); else await restaurarEstado(MODO_INICIAL === 'inv');
     PODE_GUARDAR = true; guardarEstado();
     carregarPecasFundo();
@@ -2591,6 +2609,7 @@ function ligarCartoes() {
 
 /* ---------- Sugestão nas saídas: "esta peça vem de um saco por arrumar?" ---------- */
 function sugestaoSaco(tipo, tam) {
+  if (typeof AJ !== 'undefined' && !AJ.sacos) return null;
   const cand = PECAS.filter(p => p.tipo === tipo && (!tam || p.tam === tam || p.sit === 'Na Espera'));
   if (!cand.length) return null;
   const li = document.createElement('li'); li.className = 'sugSaco';
@@ -2613,6 +2632,7 @@ function sugestaoSaco(tipo, tam) {
 
 /* ---------- Código do saco no fim do atendimento ---------- */
 function mostrarSaco(cod) {
+  if (typeof AJ !== 'undefined' && !AJ.sacos) return;
   let d = document.getElementById('avisoSaco');
   if (!d) { d = document.createElement('div'); d.id = 'avisoSaco'; document.body.appendChild(d); }
   d.innerHTML = '<div>📦 Escreve no papel do saco:</div><b>' + esc(cod) + '</b><button>OK</button>';
@@ -2620,6 +2640,74 @@ function mostrarSaco(cod) {
   d.querySelector('button').onclick = () => d.classList.add('hidden');
 }
 document.getElementById('btnPecasAtual').onclick = carregarPecas;
+
+/* =====================================================================
+   ⚙️ PERSONALIZAR: cada pessoa escolhe o que vê (fica guardado neste aparelho).
+   Só muda o aspeto: nada é apagado nem desligado nos dados.
+   Da primeira vez abre em "Simples".
+   ===================================================================== */
+const FUNCS = [
+  { k: 'inv',     nome: '👕 Inventário',        txt: 'Lado Inventário (Inventário, Medir, Espera, Arrumar)' },
+  { k: 'fic',     nome: '📋 Fichas',            txt: 'Separador Fichas e fichas nas Entradas' },
+  { k: 'papel',   nome: '📷 Ficha em papel',    txt: 'Leitor de fichas em papel' },
+  { k: 'medir',   nome: '📏 Medir',             txt: 'Botão 📏 no cabeçalho' },
+  { k: 'forms',   nome: '📝 Formulários',       txt: 'Novo crédito e entregas' },
+  { k: 'manuais', nome: '📚 Manuais',           txt: 'Botão da app dos manuais' },
+  { k: 'stock',   nome: '📦 Stock',             txt: 'Botão 📦 (desligado = trabalha sempre sem stock)' },
+  { k: 'livros',  nome: '📚 Livros',            txt: 'PNL, EMRC e Catequese nas Saídas e Entradas' },
+  { k: 'qr',      nome: '📷 Ler QR',            txt: 'Câmara nas Saídas e Entradas' },
+  { k: 'sacos',   nome: '📦 Sacos',             txt: 'Aviso "Escreve no saco" e sugestão "vem de um saco?"' }
+];
+const PRESET_SIMPLES = { inv: false, fic: true, papel: false, medir: false, forms: false, manuais: false, stock: false, livros: true, qr: false, sacos: false };
+const PRESET_COMPLETO = { inv: true, fic: true, papel: true, medir: true, forms: true, manuais: true, stock: true, livros: true, qr: true, sacos: true };
+let AJ = (() => { try { const s = JSON.parse(lerGuardado('fardasv1_ajustes') || 'null'); return s ? Object.assign({}, PRESET_COMPLETO, s) : Object.assign({}, PRESET_SIMPLES); } catch (e) { return Object.assign({}, PRESET_SIMPLES); } })();
+const iguais = (a, b) => FUNCS.every(f => !!a[f.k] === !!b[f.k]);
+
+function aplicarAjustes(primeira) {
+  FUNCS.forEach(f => document.body.classList.toggle('aj-sem-' + f.k, !AJ[f.k]));
+  // Stock escondido = trabalha sempre sem stock; voltar a mostrar repõe a escolha do botão 📦
+  if (typeof SEM_STOCK !== 'undefined') {
+    const antes = SEM_STOCK;
+    SEM_STOCK = !AJ.stock ? true : lerGuardado('fardasv1_semStock') === '1';
+    if (antes !== SEM_STOCK && !temAtendimento()) { ABERTO_A = null; if (typeof pintarModoStock === 'function') pintarModoStock(); if (!primeira) listarA(); }
+    else if (antes !== SEM_STOCK) SEM_STOCK = antes;   // com atendimento a meio não muda de modo
+  }
+  // Sem inventário: sai do lado Inventário; sem fichas: sai do separador Fichas
+  if (!primeira && typeof TAB_ATUAL !== 'undefined') {
+    if (!AJ.inv && !TABS_AT.includes(TAB_ATUAL)) irPara('sai');
+    else if (!AJ.fic && TAB_ATUAL === 'fic') irPara('ent');
+  }
+}
+function guardarAjustes() { guardar('fardasv1_ajustes', JSON.stringify(AJ)); }
+
+function abrirAjustes() {
+  let d = document.getElementById('painelAjustes');
+  if (!d) {
+    d = document.createElement('div'); d.id = 'painelAjustes';
+    d.innerHTML = '<div class="ajFundo"></div><div class="ajCaixa"></div>';
+    document.body.appendChild(d);
+    d.querySelector('.ajFundo').onclick = fecharAjustes;
+  }
+  const simples = iguais(AJ, PRESET_SIMPLES), completo = iguais(AJ, PRESET_COMPLETO);
+  d.querySelector('.ajCaixa').innerHTML =
+    '<div class="ajTopo"><b>⚙️ Personalizar</b><button class="mini2" id="ajFechar">✕</button></div>' +
+    '<p class="meta" style="margin:2px 0 10px">Escolhe o que queres ver. Fica guardado só neste aparelho; não muda nada nos dados.</p>' +
+    '<div class="ajPresets"><button class="ajP' + (simples ? ' sel' : '') + '" data-pre="s">🙂 Simples<small>só o essencial</small></button>' +
+    '<button class="ajP' + (completo ? ' sel' : '') + '" data-pre="c">🧰 Completo<small>tudo</small></button></div>' +
+    '<div class="ajLista">' + FUNCS.map(f =>
+      '<label class="ajL"><input type="checkbox" data-k="' + f.k + '"' + (AJ[f.k] ? ' checked' : '') + '><span><b>' + esc(f.nome) + '</b><small>' + esc(f.txt) + '</small></span></label>').join('') + '</div>';
+  d.classList.remove('hidden');
+  d.querySelector('#ajFechar').onclick = fecharAjustes;
+  d.querySelectorAll('[data-pre]').forEach(b => b.onclick = () => {
+    AJ = Object.assign({}, b.dataset.pre === 's' ? PRESET_SIMPLES : PRESET_COMPLETO);
+    guardarAjustes(); aplicarAjustes(); abrirAjustes();
+    toast(b.dataset.pre === 's' ? '🙂 Modo simples' : '🧰 Modo completo');
+  });
+  d.querySelectorAll('[data-k]').forEach(c => c.onchange = () => { AJ[c.dataset.k] = c.checked; guardarAjustes(); aplicarAjustes(); abrirAjustes(); });
+}
+function fecharAjustes() { const d = document.getElementById('painelAjustes'); if (d) d.classList.add('hidden'); }
+document.getElementById('btnAjustes').onclick = abrirAjustes;
+aplicarAjustes(true);
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function toast(t) { const m = document.getElementById('msg'); m.textContent = t; m.style.display = 'block'; clearTimeout(m._t); m._t = setTimeout(() => m.style.display = 'none', 3200); }

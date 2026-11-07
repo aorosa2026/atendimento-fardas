@@ -95,6 +95,10 @@
   #gfNova { padding:8px 12px; background:#e3f2ec; border-bottom:1px solid #8cc7b2; font-size:.9rem; display:flex; align-items:center; gap:8px; flex-wrap:wrap; } #gfNova.hidden { display:none; }
   #gfNova button { margin-left:auto; border:0; background:var(--acc); color:#fff; border-radius:999px; padding:7px 13px; font:inherit; font-weight:700; cursor:pointer; }
   #gavetaForm iframe { flex:1; width:100%; border:0; background:#fff; }
+  #btnStock.off { background:#fbe9e7; border-color:#d9a19a; position:relative; }
+  #btnStock.off::after { content:""; position:absolute; left:6px; right:6px; top:50%; height:2px; background:#b3261e; transform:rotate(-35deg); }
+  .soSemStock { display:none; } body[data-stock="off"] .soSemStock { display:inline; } body[data-stock="off"] .soStock { display:none; }
+  .avisoSemStock { background:#fbe9e7; color:#7a2318; border-radius:10px; padding:7px 10px; font-size:.86rem; margin:0 0 8px; }
   .chip.semTam { background:#fff6db; border-color:#e6cf8a; color:#7a5a00; }
   .chip.semTam.sel { background:#b8860b; border-color:#b8860b; color:#fff; }
 
@@ -278,7 +282,7 @@
 
   <!-- ===== App ===== -->
   <section id="ecraApp" class="hidden">
-    <header class="hdrUni"><div class="modos"><button data-modo="at"><span class="ico">🧾 </span>Atendimento</button><button data-modo="inv"><span class="ico">👕 </span>Inventário</button></div><button id="btnMedir" class="hdrBtn" title="Medir (abre por cima, sem sair do atendimento)">📏</button><button id="btnForms" class="hdrBtn hidden" title="Formulários: novo crédito e entregas (abrem por cima, já carregados)">📝</button><button id="btnManuais" class="hdrBtn" title="Manuais (abre noutro separador, que fica aberto)">📚</button><button class="sair" id="btnSair">sair</button></header>
+    <header class="hdrUni"><div class="modos"><button data-modo="at"><span class="ico">🧾 </span>Atendimento</button><button data-modo="inv"><span class="ico">👕 </span>Inventário</button></div><button id="btnStock" class="hdrBtn" title="Stock ligado / desligado">📦</button><button id="btnMedir" class="hdrBtn" title="Medir (abre por cima, sem sair do atendimento)">📏</button><button id="btnForms" class="hdrBtn hidden" title="Formulários: novo crédito e entregas (abrem por cima, já carregados)">📝</button><button id="btnManuais" class="hdrBtn" title="Manuais (abre noutro separador, que fica aberto)">📚</button><button class="sair" id="btnSair">sair</button></header>
 
     <nav class="tabs" id="navAt">
       <button data-tab="sai">⬆ Saídas</button>
@@ -386,7 +390,7 @@
         </section>
         <section class="bloco ent so-ent">
           <div class="bloco-tit">⬇ Entradas <span><small id="nEnt"></small> <b id="tEntB"></b></span></div>
-          <p class="meta" style="margin:6px 0 0">Com tamanho: entra logo no stock. Sem tamanho: vai para a sala de espera ⏳.</p>
+          <p class="meta" style="margin:6px 0 0"><span class="soStock">Com tamanho: entra logo no stock.</span><span class="soSemStock">Com tamanho: fica registado (sem stock).</span> Sem tamanho: vai para a sala de espera ⏳.</p>
           <ul id="lEnt" class="linhas"></ul>
         </section>
         <section class="bloco liv so-ent">
@@ -535,6 +539,7 @@ async function entrar(automatico) {
     const idLink = new URLSearchParams(location.search).get('id');
     await irPara(MODO_INICIAL === 'at' ? 'sai' : 'inv');
     if (idLink) abrirPorCodigo(idLink); else await restaurarEstado(MODO_INICIAL === 'inv');
+    PODE_GUARDAR = true; guardarEstado();
   } catch (e) {
     const pwErrada = /palavra-passe/i.test(e.message || '');
     if (pwErrada) guardar('fardasv1_pw', '');      // só esquece a palavra-passe se estiver mesmo errada
@@ -884,7 +889,7 @@ async function movimentar(sinal) {
    ATENDIMENTO
    ===================================================================== */
 // leva/entrega: { 'id|estado': qtd } (peça com tamanho) · espera: { 'Tipo|estado': qtd } (entregue sem tamanho)
-const CARRO = { leva: {}, entrega: {}, espera: {} };
+const CARRO = { leva: {}, entrega: {}, espera: {}, semL: {}, semE: {} };   // semL/semE = modo sem stock
 let MODO_AT = 'leva';
 let ABERTO_A = null;   // peça aberta na lista do atendimento: id do artigo ou 'esp:Tipo' (entrega sem tamanho)
 let idPendente = null;                     // mantém o mesmo código se for preciso repetir o envio
@@ -958,6 +963,7 @@ document.getElementById('scanA').onclick = e => iniciarLeitor('leitorA', e.curre
   if (st) { abrirSemTamanho(st); return; }
   if (st === false) return;
   const a = artigoDoQR(t); if (!a) return;
+  if (SEM_STOCK) { abrirSemDoArtigo(a); return; }
   if (a.vende === false) { toast(nomeArtigo(a) + ': não se vende (não entra no atendimento).'); return; }
   filtroA.cat = filtroA.sub = ''; filtroA.tam = []; desenharFiltrosA();
   pesqA.value = a.id; ABERTO_A = a.id; listarA();
@@ -1007,6 +1013,7 @@ function chipsA(idEl, valores, chave, rotuloTodos) {
 
 pesqA.addEventListener('input', () => { ABERTO_A = null; listarA(); });
 function listarA() {
+  if (SEM_STOCK) { listarSem(); return; }
   const ul = document.getElementById('sugA'), cont = document.getElementById('contA');
   ul.innerHTML = ''; cont.textContent = '';
   const palavras = semAcentos(pesqA.value.trim()).split(/\s+/).filter(Boolean);
@@ -1194,6 +1201,8 @@ function contas() {
     const [sub, est] = partes(k), p = precoTipo(sub, est);
     nE += q; tE += q * (p || 0); if (p == null) semPreco++;
   });
+  const acS = { tL: 0, tE: 0, nL: 0, nE: 0, semPreco: 0 }; contasSem(acS);
+  tL += acS.tL; tE += acS.tE; nL += acS.nL; nE += acS.nE; semPreco += acS.semPreco;
   let nLv = 0;
   LIVROS.forEach(lv => {
     const ql = CARRO_LIV.leva[lv.sub] || 0, qe = CARRO_LIV.entrega[lv.sub] || 0;
@@ -1240,7 +1249,7 @@ function desenharEntregas() {
   const ul = document.getElementById('lEnt');
   ul.innerHTML = '';
   const ids = Object.keys(CARRO.entrega), ks = Object.keys(CARRO.espera);
-  if (!ids.length && !ks.length) { ul.innerHTML = '<li class="vaziaL">Nenhuma peça.</li>'; return; }
+  if (!ids.length && !ks.length && !Object.keys(CARRO.semE).length) { ul.innerHTML = '<li class="vaziaL">Nenhuma peça.</li>'; return; }
   // com tamanho → entra no stock
   ids.forEach(k => {
     const [id, est] = partes(k), a = art(id); if (!a) return;
@@ -1265,6 +1274,7 @@ function desenharEntregas() {
     li.querySelector('.tira').onclick = () => juntarEnt(sub, -q, est);
     ul.appendChild(li);
   });
+  desenharSemCarro('entrega');
 }
 
 const livTot = dir => LIVROS.reduce((t, lv) => t + (CARRO_LIV[dir][lv.sub] || 0) * lv.preco, 0);
@@ -1292,6 +1302,7 @@ function desenharAt() {
       ul.appendChild(li);
     });
   });
+  desenharSemCarro('leva');
   const c = contas();
   document.getElementById('nLeva').textContent = c.nL ? c.nL + (c.nL === 1 ? ' peça' : ' peças') : '';
   document.getElementById('nEnt').textContent = c.nE ? c.nE + (c.nE === 1 ? ' peça' : ' peças') : '';
@@ -1333,6 +1344,7 @@ function resumoAt() {
   Object.entries(CARRO.entrega).forEach(([k, q]) => l.push(linha('Entrada', k, q)));
   Object.entries(CARRO.espera).forEach(([k, q]) => { const [sub, est] = partes(k);
     l.push('Entrada ' + q + '× ' + sub + ' (sem tamanho' + (est !== 'Boa' ? ', ' + nomeEst(est) : '') + ') = ' + eur(q * (precoTipo(sub, est) || 0))); });
+  resumoSem().forEach(x => l.push(x));
   LIVROS.forEach(lv => {
     ['leva', 'entrega'].forEach(dir => { const q = CARRO_LIV[dir][lv.sub];
       if (q) l.push((dir === 'leva' ? 'Saída ' : 'Entrada ') + q + '× livro = ' + eur(q * lv.preco)); });
@@ -1353,13 +1365,13 @@ function resumoAt() {
 }
 
 function limparAt() {
-  CARRO.leva = {}; CARRO.entrega = {}; CARRO.espera = {}; CARRO_LIV.leva = {}; CARRO_LIV.entrega = {}; idPendente = null;
+  CARRO.leva = {}; CARRO.entrega = {}; CARRO.espera = {}; CARRO.semL = {}; CARRO.semE = {}; CARRO_LIV.leva = {}; CARRO_LIV.entrega = {}; idPendente = null;
   FICHA_ATUAL = null; VERIF = null; desenharVerif();
   pesqA.value = ''; ABERTO_A = null; filtroA.cat = filtroA.sub = ''; filtroA.tam = []; desenharFiltrosA(); listarA();
   tirarTalao();
 }
 document.getElementById('btnLimparAt').onclick = () => {
-  if (Object.keys(CARRO.leva).length + Object.keys(CARRO.entrega).length + Object.keys(CARRO.espera).length && !confirm('Limpar este atendimento?')) return;
+  if (Object.keys(CARRO.leva).length + Object.keys(CARRO.entrega).length + Object.keys(CARRO.espera).length + Object.keys(CARRO.semL).length + Object.keys(CARRO.semE).length && !confirm('Limpar este atendimento?')) return;
   limparAt();
 };
 document.getElementById('btnCopiarAt').onclick = () => {
@@ -1369,7 +1381,7 @@ document.getElementById('btnCopiarAt').onclick = () => {
 };
 
 document.getElementById('btnConfirmar').onclick = async () => {
-  if (!confirm('Confirmar este atendimento? O stock vai ser atualizado.\n\n' + resumoAt())) return;
+  if (!confirm('Confirmar este atendimento? ' + (Object.keys(CARRO.leva).length + Object.keys(CARRO.entrega).length ? 'O stock vai ser atualizado.' : 'O inventário não muda (sem stock).') + '\n\n' + resumoAt())) return;
   const b = document.getElementById('btnConfirmar');
   b.disabled = true; b.textContent = 'A gravar…';
   if (!idPendente) idPendente = 'A' + new Date().toISOString().replace(/\D/g, '').slice(2, 14) + '-' + Math.random().toString(36).slice(2, 5);
@@ -1377,6 +1389,7 @@ document.getElementById('btnConfirmar').onclick = async () => {
   Object.entries(CARRO.leva).forEach(([k, qtd]) => { const [id, estado] = partes(k); linhas.push({ id, tipo: 'leva', qtd, estado }); });
   Object.entries(CARRO.entrega).forEach(([k, qtd]) => { const [id, estado] = partes(k); linhas.push({ id, tipo: 'entrega', qtd, estado }); });
   Object.entries(CARRO.espera).forEach(([k, qtd]) => { const [sub, estado] = partes(k); linhas.push({ sub, tipo: 'espera', qtd, estado }); });
+  linhasSem().forEach(l => linhas.push(l));
   ['leva', 'entrega'].forEach(dir => Object.entries(CARRO_LIV[dir]).forEach(([sub, qtd]) => linhas.push({ tipo: 'livro', sub, dir, qtd })));
   try {
     const r = await api('atendimento', { idAt: idPendente, talao: TALAO ? TALAO.canhao : '', ficha: FICHA_ATUAL ? FICHA_ATUAL.codigo : '', linhas });
@@ -1517,7 +1530,7 @@ function painelEspera(e) {
     box.querySelectorAll('.mTam .chip').forEach(c => c.classList.toggle('sel', c.textContent === escolhido));
     zEst.querySelectorAll('.chip').forEach(c => c.classList.toggle('sel', c.dataset.k === estE));
     ok.disabled = !escolhido;
-    ok.textContent = escolhido ? '✔ Inventariar: tamanho ' + escolhido + ' · ' + curtoEst(ESTADOS.find(x => x.chave === estE) || { nome: estE }) : 'Escolhe o tamanho';
+    ok.textContent = escolhido ? (SEM_STOCK ? '✔ Arrumar · guardar em ' + e.tipo + ' tam. ' : '✔ Inventariar: tamanho ') + escolhido + ' · ' + curtoEst(ESTADOS.find(x => x.chave === estE) || { nome: estE }) : 'Escolhe o tamanho';
   };
   pintar();
   const zt = box.querySelector('.mTam');
@@ -1585,6 +1598,13 @@ function painelEspera(e) {
   ok.onclick = async () => {
     ok.disabled = true; ok.textContent = 'A gravar…';
     try {
+      if (SEM_STOCK) {
+        await api('arrumar', { idE: e.idE, tamanho: escolhido, estado: estE });
+        ESPERA = ESPERA.filter(x => x.idE !== e.idE); espAberta = null;
+        document.getElementById('nEsp').textContent = ESPERA.length ? '(' + ESPERA.length + ')' : '';
+        toast('✔ Guardar em: ' + e.tipo + ' · tam. ' + escolhido + ' (' + nomeEst(estE) + ')');
+        desenharEspera(); return;
+      }
       const r = await api('inventariar', { idE: e.idE, tamanho: escolhido, estado: estE });
       atualizarStocks(r.stocks);
       ESPERA = ESPERA.filter(x => x.idE !== e.idE); espAberta = null;
@@ -1841,15 +1861,17 @@ document.getElementById('filtroMed').addEventListener('input', calcularMedida);
    ===================================================================== */
 const RASCUNHO = 'fardasv1_rascunho', VALIDADE_MS = 2 * 3600 * 1000;
 function temAtendimento() {
-  return Object.keys(CARRO.leva).length + Object.keys(CARRO.entrega).length + Object.keys(CARRO.espera).length +
+  return Object.keys(CARRO.leva).length + Object.keys(CARRO.entrega).length + Object.keys(CARRO.espera).length + Object.keys(CARRO.semL).length + Object.keys(CARRO.semE).length +
     Object.keys(CARRO_LIV.leva).length + Object.keys(CARRO_LIV.entrega).length > 0 || !!TALAO || !!FICHA_ATUAL;
 }
+let PODE_GUARDAR = false;   // fica true depois de recuperar o rascunho ao entrar
 function guardarEstado() {
+  if (!PODE_GUARDAR) return;
   if (document.getElementById('ecraApp').classList.contains('hidden')) return;   // ainda não entrou
   try {
     if (!temAtendimento()) { localStorage.removeItem(RASCUNHO); return; }
     localStorage.setItem(RASCUNHO, JSON.stringify({
-      v: 2, t: Date.now(), leva: CARRO.leva, entrega: CARRO.entrega, espera: CARRO.espera, liv: CARRO_LIV, talao: TALAO, ficha: FICHA_ATUAL, idPendente
+      v: 2, t: Date.now(), leva: CARRO.leva, entrega: CARRO.entrega, espera: CARRO.espera, semL: CARRO.semL, semE: CARRO.semE, liv: CARRO_LIV, talao: TALAO, ficha: FICHA_ATUAL, idPendente
     }));
   } catch (e) {}
 }
@@ -1865,6 +1887,7 @@ async function restaurarEstado(ficar) {   // ficar = não mudar de separador (qu
     Object.entries(s.entrega || {}).forEach(([k, q]) => { if (existe(k)) CARRO.entrega[k] = q; });
     Object.assign(CARRO.espera, s.espera || {});
   } else Object.assign(CARRO.espera, s.entrega || {});      // rascunho antigo: as entregas eram todas sem tamanho
+  CARRO.semL = Object.assign({}, s.semL || {}); CARRO.semE = Object.assign({}, s.semE || {});
   CARRO_LIV.leva = Object.assign({}, (s.liv || {}).leva || {});
   CARRO_LIV.entrega = Object.assign({}, (s.liv || {}).entrega || {});
   idPendente = s.idPendente || null;
@@ -2061,6 +2084,7 @@ function passarFichaParaCarro() {
   const recusadas = [];
   V.pecas.forEach(p => {
     if (p.dec === 'nao') { recusadas.push('#' + p.n + ' ' + p.tipo + (p.tam ? ' ' + p.tam : '') + ' (' + p.motivo + ')'); return; }
+    if (SEM_STOCK && p.tam) { const ks = chaveS(p.tipo, p.tam, p.est); CARRO.semE[ks] = (CARRO.semE[ks] || 0) + 1; n++; return; }   // modo sem stock
     const a = p.tam ? ARTIGOS.find(x => x.subcategoria === p.tipo && x.tamanho === p.tam) : null;
     if (a) { const k = chaveC(a.id, p.est); CARRO.entrega[k] = (CARRO.entrega[k] || 0) + 1; }
     else { const k = chaveC(p.tipo, p.est); CARRO.espera[k] = (CARRO.espera[k] || 0) + 1; }
@@ -2082,15 +2106,19 @@ function desenharResumo(c) {
   const li = (txt, v) => '<li><span>' + txt + '</span><b>' + eur(v) + '</b></li>';
   let h = '';
   const sai = Object.entries(CARRO.leva), ent = Object.entries(CARRO.entrega), esp = Object.entries(CARRO.espera);
+  const semL = Object.entries(CARRO.semL || {}), semE = Object.entries(CARRO.semE || {});
+  const liS = ([k, q]) => { const [sub, tam, e] = partesS(k); return li(q + '× ' + esc(sub) + (tam ? ' ' + esc(tam) : '') + ' · ' + esc(nomeEst(e).split(' · ')[0]), q * (precoTipo(sub, e) || 0)); };
   const livS = LIVROS.filter(lv => CARRO_LIV.leva[lv.sub]), livE = LIVROS.filter(lv => CARRO_LIV.entrega[lv.sub]);
-  if (sai.length || livS.length) {
+  if (sai.length || semL.length || livS.length) {
     h += '<li class="rt">⬆ Saídas</li>';
     sai.forEach(([k, q]) => { const [id, e] = partes(k), a = art(id); if (a) h += li(q + '× ' + esc(nomeArtigo(a)) + ' ' + esc(a.tamanho) + ' · ' + esc(nomeEst(e).split(' · ')[0]), q * (precoEst(a, e) || 0)); });
+    semL.forEach(x => { h += liS(x); });
     livS.forEach(lv => { const q = CARRO_LIV.leva[lv.sub]; h += li(q + '× 📚 ' + esc(lv.sub), q * lv.preco); });
   }
-  if (ent.length || esp.length || livE.length) {
+  if (ent.length || semE.length || esp.length || livE.length) {
     h += '<li class="rt">⬇ Entradas</li>';
     ent.forEach(([k, q]) => { const [id, e] = partes(k), a = art(id); if (a) h += li(q + '× ' + esc(nomeArtigo(a)) + ' ' + esc(a.tamanho) + ' · ' + esc(nomeEst(e).split(' · ')[0]), q * (precoEst(a, e) || 0)); });
+    semE.forEach(x => { h += liS(x); });
     esp.forEach(([k, q]) => { const [sub, e] = partes(k); h += li(q + '× ' + esc(sub) + ' ⏳ s/ tam. · ' + esc(nomeEst(e).split(' · ')[0]), q * (precoTipo(sub, e) || 0)); });
     livE.forEach(lv => { const q = CARRO_LIV.entrega[lv.sub]; h += li(q + '× 📚 ' + esc(lv.sub), q * lv.preco); });
   }
@@ -2193,6 +2221,206 @@ document.getElementById('fundoGaveta').addEventListener('click', fecharForms);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharForms(); });
 // o link "Novo talão" do Resumo também abre a gaveta
 document.getElementById('linkForm').addEventListener('click', e => { if (FORMS.credito) { e.preventDefault(); abrirForms('credito'); } });
+
+/* =====================================================================
+   MODO SEM STOCK (botão 📦 no cabeçalho; cada pessoa escolhe, fica guardado neste aparelho)
+   Saídas e entradas por TIPO de peça + ESTADO (+ tamanho), com os mesmos preços.
+   O talão, os registos (Atendimentos) e as fichas funcionam igual; o inventário não mexe.
+   Entradas sem tamanho continuam a ir para a Espera; lá, "Arrumar" diz onde guardar.
+   CARRO.semL / CARRO.semE = { 'Tipo|Tamanho|Estado': qtd }  (tamanho pode ser '')
+   ===================================================================== */
+let SEM_STOCK = lerGuardado('fardasv1_semStock') === '1';
+let TAM_SEM = null;     // tamanho escolhido no painel: null = ainda não escolhido · '' = sem tamanho (saídas) · '?' = s/ tam. → Espera (entradas)
+const chaveS = (sub, tam, est) => sub + '|' + (tam || '') + '|' + est;
+const partesS = k => { const p = k.split('|'); const est = p.pop(), tam = p.pop(); return [p.join('|'), tam, est]; };
+const tamsDoTipoSem = sub => unicos(ARTIGOS.filter(a => a.subcategoria === sub).map(a => a.tamanho)).sort(ordTam);
+const mapaSem = dir => dir === 'leva' ? CARRO.semL : CARRO.semE;
+
+function juntarSem(dir, sub, tam, est, n) {
+  const m = mapaSem(dir), k = chaveS(sub, tam, est);
+  m[k] = Math.max(0, (m[k] || 0) + (n || 1));
+  if (!m[k]) delete m[k];
+  idPendente = null;
+  desenharAt();
+}
+function mudarEstadoSem(dir, k, novo) {
+  const m = mapaSem(dir), [sub, tam] = partesS(k), q = m[k], k2 = chaveS(sub, tam, novo);
+  if (k2 === k) return;
+  delete m[k]; m[k2] = (m[k2] || 0) + q;
+  idPendente = null; desenharAt();
+}
+
+/* ---------- Botão 📦 ---------- */
+function pintarModoStock() {
+  const b = document.getElementById('btnStock');
+  if (b) {
+    b.classList.toggle('off', SEM_STOCK);
+    b.title = SEM_STOCK ? 'Modo SEM stock (só contas e registo). Toca para ligar o stock.' : 'Stock ligado. Toca para trabalhar sem stock (só contas e registo).';
+  }
+  document.body.dataset.stock = SEM_STOCK ? 'off' : 'on';
+  const av = document.getElementById('avisoSemStock');
+  if (av) av.classList.toggle('hidden', !SEM_STOCK);
+}
+document.getElementById('btnStock').onclick = () => {
+  if (temAtendimento()) { toast('Termina ou limpa o atendimento em curso antes de mudar de modo.'); return; }
+  SEM_STOCK = !SEM_STOCK;
+  guardar('fardasv1_semStock', SEM_STOCK ? '1' : '');
+  pintarModoStock();
+  ABERTO_A = null; TAM_SEM = null;
+  if (typeof listarA === 'function') listarA();
+  toast(SEM_STOCK ? '📦 Modo SEM stock: as peças contam para o talão e ficam registadas, mas o inventário não muda.'
+                  : '📦 Stock ligado: as saídas e entradas mexem no inventário.');
+};
+(function () {
+  const t = document.getElementById('tabAt');
+  if (t && !document.getElementById('avisoSemStock')) {
+    const d = document.createElement('div');
+    d.id = 'avisoSemStock'; d.className = 'avisoSemStock hidden';
+    d.innerHTML = '📦 <b>Modo sem stock</b> — escolhe o tipo de peça, o estado e o tamanho. O inventário não muda.';
+    t.prepend(d);
+  }
+  pintarModoStock();
+})();
+
+/* ---------- Lista do atendimento no modo sem stock: tipos de peça (não artigos) ---------- */
+function listarSem() {
+  const ul = document.getElementById('sugA'), cont = document.getElementById('contA');
+  ul.innerHTML = ''; cont.textContent = '';
+  const ent = MODO_AT === 'entrega';
+  if (ABERTO_A && ABERTO_A.startsWith('sem:')) {
+    const t = tipoInfo(ABERTO_A.slice(4));
+    if (t) {
+      const v = document.createElement('button'); v.className = 'voltarA'; v.textContent = '← voltar à lista';
+      v.onclick = () => { ABERTO_A = null; TAM_SEM = null; listarA(); };
+      cont.appendChild(v);
+      ul.appendChild(painelSem(t, ent));
+      return;
+    }
+  }
+  if (ABERTO_A && ABERTO_A.startsWith('esp:')) {   // QR "sem tamanho" → painel da Espera, como no modo com stock
+    const esp = tipoInfo(ABERTO_A.slice(4));
+    if (esp) { ul.appendChild(painelSemTamanho(esp)); return; }
+  }
+  ABERTO_A = null;
+  const palavras = semAcentos(pesqA.value.trim()).split(/\s+/).filter(Boolean);
+  if (!palavras.length && !filtroA.cat && !filtroA.sub && !filtroA.tam.length) return;
+  const tamFiltro = filtroA.tam.filter(t => t !== SEM_TAM);
+  const res = tiposDePeca().filter(t => t.vende !== false &&
+      (!filtroA.cat || t.grupo === filtroA.cat) && (!filtroA.sub || t.tipo === filtroA.sub))
+    .map(t => {
+      const tams = tamsDoTipoSem(t.tipo), txt = semAcentos(t.tipo + ' ' + t.grupo);
+      let tam = tamFiltro.length === 1 && tams.includes(tamFiltro[0]) ? tamFiltro[0] : null;
+      const ok = palavras.every(p => {
+        if (txt.includes(p)) return true;
+        const tt = tams.find(x => semAcentos(x) === p);
+        if (tt) { tam = tt; return true; }
+        return false;
+      });
+      return ok ? { t, tam } : null;
+    }).filter(Boolean);
+  cont.textContent = res.length + (res.length === 1 ? ' tipo de peça' : ' tipos de peça') + ' · sem stock';
+  res.slice(0, 60).forEach(({ t, tam }) => {
+    const li = document.createElement('li'); li.className = 'item';
+    const p = precoTipo(t.tipo, 'Boa');
+    const noC = Object.entries(mapaSem(ent ? 'entrega' : 'leva')).reduce((n, [k, q]) => n + (partesS(k)[0] === t.tipo ? q : 0), 0);
+    li.innerHTML = '<div class="nm">' + esc(t.tipo) + (tam ? ' <b>· ' + esc(tam) + '</b>' : '') +
+      (noC ? ' <span class="stkTag">' + noC + ' ' + (ent ? 'a entrar' : 'a sair') + '</span>' : '') +
+      '<small>' + esc(t.grupo) + ' · ' + (p != null ? eur(p) : 'sem preço') + '</small></div><span class="seta">›</span>';
+    li.onclick = () => { ABERTO_A = 'sem:' + t.tipo; TAM_SEM = tam != null ? tam : (ent ? null : ''); listarA(); };
+    ul.appendChild(li);
+  });
+}
+
+// Janelinha de um tipo de peça: tamanho (chips) + estado (cada toque junta 1)
+function painelSem(t, ent) {
+  const dir = ent ? 'entrega' : 'leva';
+  const tams = tamsDoTipoSem(t.tipo);
+  const li = document.createElement('li'); li.className = 'aberto ' + (ent ? 'ent' : 'leva');
+  li.innerHTML = '<div class="nm"><b>' + (ent ? '⬇ Entrada: ' : '⬆ Saída: ') + '</b>' + esc(t.tipo) + ' <span class="stkTag">sem stock</span>' +
+    '<small>' + (ent ? 'Escolhe o tamanho (para saber onde guardar) — ou "s/ tam." para a Espera — e toca no estado.'
+                     : 'Tamanho opcional (só para estatística). Toca no estado; cada toque junta 1.') + '</small></div>' +
+    '<div class="filtro-tit" style="margin:8px 0 4px">Tamanho</div><div class="chips semTams"></div>';
+  const zt = li.querySelector('.semTams');
+  const ops = (ent ? [] : [['', '—']]).concat(tams.map(x => [x, x])).concat(ent ? [['?', SEM_TAM]] : []);
+  ops.forEach(([v, rot]) => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (TAM_SEM === v ? ' sel' : '') + (v === '?' ? ' semTam' : '');
+    b.textContent = rot;
+    b.onclick = () => { TAM_SEM = v; listarA(); };
+    zt.appendChild(b);
+  });
+  const box = document.createElement('div'); box.className = 'painelEst';
+  const falta = ent && TAM_SEM == null;
+  estadosDe(t).forEach(e => {
+    const p = precoTipo(t.tipo, e.chave);
+    const q = TAM_SEM === '?' ? (CARRO.espera[chaveC(t.tipo, e.chave)] || 0) : TAM_SEM == null ? 0 : (mapaSem(dir)[chaveS(t.tipo, TAM_SEM, e.chave)] || 0);
+    const b = document.createElement('button'); b.className = 'estL';
+    b.innerHTML = '<span class="noC' + (q ? '' : ' zero') + '">' + (q ? q + '×' : '+') + '</span>' +
+      '<span class="nmE">' + esc(e.nome) + (falta ? '<small>escolhe primeiro o tamanho</small>' : TAM_SEM === '?' ? '<small>⏳ vai para a Espera</small>' : '') + '</span>' +
+      '<span class="pr">' + (p != null ? eur(p) : '—') + '</span>';
+    if (falta) b.classList.add('vazio');
+    b.onclick = () => {
+      if (falta) { toast('Escolhe o tamanho (ou "s/ tam.").'); return; }
+      if (TAM_SEM === '?') { juntarEnt(t.tipo, 1, e.chave); toast('⬇ ' + t.tipo + ' sem tamanho · ' + curtoEst(e) + ' → Espera'); }
+      else { juntarSem(dir, t.tipo, TAM_SEM, e.chave, 1); toast((ent ? '⬇ ' : '⬆ ') + t.tipo + (TAM_SEM ? ' ' + TAM_SEM : '') + ' · ' + curtoEst(e)); }
+      listarA();
+    };
+    box.appendChild(b);
+  });
+  li.appendChild(box);
+  return li;
+}
+// QR de uma peça lido no modo sem stock: abre o tipo dela, com o tamanho já escolhido
+function abrirSemDoArtigo(a) {
+  filtroA.cat = filtroA.sub = ''; filtroA.tam = []; desenharFiltrosA();
+  pesqA.value = '';
+  ABERTO_A = 'sem:' + a.subcategoria; TAM_SEM = a.tamanho || (MODO_AT === 'entrega' ? null : '');
+  listarA();
+  toast((MODO_AT === 'leva' ? '⬆ Saída: ' : '⬇ Entrada: ') + a.subcategoria + ' ' + (a.tamanho || '') + ' — escolhe o estado');
+}
+
+/* ---------- Carrinho: linhas sem stock ---------- */
+function desenharSemCarro(dir) {
+  const ul = document.getElementById(dir === 'leva' ? 'lLeva' : 'lEnt');
+  const m = mapaSem(dir), ks = Object.keys(m);
+  if (!ul || !ks.length) return;
+  const vazia = ul.querySelector('.vaziaL'); if (vazia) vazia.remove();
+  ks.forEach(k => {
+    const [sub, tam, est] = partesS(k), q = m[k], p = precoTipo(sub, est), t = tipoInfo(sub);
+    const opcoes = estadosDe(t || { tipo: sub }).map(e => '<option value="' + esc(e.chave) + '"' + (e.chave === est ? ' selected' : '') + '>' + esc(e.nome) +
+      (precoTipo(sub, e.chave) != null ? ' · ' + eur(precoTipo(sub, e.chave)) : '') + '</option>').join('');
+    const li = linhaCarro(esc(sub) + (tam ? ' <b>· ' + esc(tam) + '</b>' : '') + ' <span class="stkTag">s/ stock</span>', opcoes, q, q * (p || 0),
+      p == null ? '⚠ sem preço' : '');
+    li.querySelector('.estSel').onchange = e => mudarEstadoSem(dir, k, e.target.value);
+    li.querySelectorAll('.mini button').forEach(b => b.onclick = () => juntarSem(dir, sub, tam, est, +b.dataset.d));
+    li.querySelector('.tira').onclick = () => juntarSem(dir, sub, tam, est, -q);
+    ul.appendChild(li);
+  });
+}
+// Contas das linhas sem stock (chamado dentro de contas())
+function contasSem(acc) {
+  [['leva', CARRO.semL], ['entrega', CARRO.semE]].forEach(([dir, m]) => Object.entries(m).forEach(([k, q]) => {
+    const [sub, , est] = partesS(k), p = precoTipo(sub, est);
+    if (p == null) acc.semPreco++;
+    if (dir === 'leva') { acc.nL += q; acc.tL += q * (p || 0); } else { acc.nE += q; acc.tE += q * (p || 0); }
+  }));
+}
+function resumoSem() {
+  const l = [];
+  [['Saída', CARRO.semL], ['Entrada', CARRO.semE]].forEach(([rot, m]) => Object.entries(m).forEach(([k, q]) => {
+    const [sub, tam, est] = partesS(k);
+    l.push(rot + ' ' + q + '× ' + sub + (tam ? ' ' + tam : '') + (est !== 'Boa' ? ' (' + nomeEst(est) + ')' : '') + ' [sem stock] = ' + eur(q * (precoTipo(sub, est) || 0)));
+  }));
+  return l;
+}
+function linhasSem() {
+  const l = [];
+  [['leva', CARRO.semL], ['entrega', CARRO.semE]].forEach(([dir, m]) => Object.entries(m).forEach(([k, qtd]) => {
+    const [sub, tam, estado] = partesS(k);
+    l.push({ tipo: 'semstock', dir, sub, tam, estado, qtd });
+  }));
+  return l;
+}
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function toast(t) { const m = document.getElementById('msg'); m.textContent = t; m.style.display = 'block'; clearTimeout(m._t); m._t = setTimeout(() => m.style.display = 'none', 3200); }

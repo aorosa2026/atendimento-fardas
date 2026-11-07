@@ -2600,7 +2600,9 @@ function sugestaoSaco(tipo, tam) {
     const p = PECAS.find(x => x.id === b.dataset.sug); if (!p) return;
     b.disabled = true;
     try {
-      const r = await api('pecas', { ids: [p.id], situacao: 'Saiu antes de arrumar', nota: 'levada num atendimento' });
+      const d = { ids: [p.id], situacao: 'Saiu antes de arrumar', nota: 'levada num atendimento' };
+      if (tam && !p.tam) d.tamanho = tam;            // peça registada sem tamanho: fica com o tamanho escolhido na saída
+      const r = await api('pecas', d);
       PECAS = r.pecas || PECAS.filter(x => x.id !== p.id);
       toast('↗ ' + p.saco + ' #' + p.n + ' saiu da lista de arrumar');
       li.remove();

@@ -642,7 +642,23 @@ document.getElementById('linkSemTam').href = API_URL + '?action=qrsemtam';
 /* ---------- Leitura QR em direto ---------- */
 /* Um só leitor para os dois separadores: elId = onde aparece a câmara, aoLer = o que fazer com o texto */
 const LEITURA_MS = 800;   // tempo (ms) com o código parado no quadrado antes de o aceitar — aumentar se ainda for rápido
+/* Bip ao ler um QR (como no supermercado). Liga/desliga em ⚙️ Personalizar → 🔊 Som ao ler QR */
+let AUDIO_CTX = null;
+function prepararSom() {   // os navegadores só deixam tocar som depois de um toque: prepara-o ao abrir a câmara
+  try { if (!AUDIO_CTX) AUDIO_CTX = new (window.AudioContext || window.webkitAudioContext)(); if (AUDIO_CTX.state === 'suspended') AUDIO_CTX.resume(); } catch (e) {}
+}
+function bip() {
+  if (typeof AJ !== 'undefined' && AJ.som === false) return;
+  try {
+    prepararSom();
+    const c = AUDIO_CTX, o = c.createOscillator(), g = c.createGain(), t = c.currentTime;
+    o.type = 'square'; o.frequency.value = 1800;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.2, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + 0.13);
+  } catch (e) {}
+}
 async function iniciarLeitor(elId, btn, aoLer) {
+  prepararSom();
   if (scanner) { const mesmo = scanBtn === btn; await pararLeitor(); if (mesmo) return; }
   scanner = new Html5Qrcode(elId, { verbose: false,
     formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
@@ -659,6 +675,7 @@ async function iniciarLeitor(elId, btn, aoLer) {
         ultimo = agora;
         if (agora - desde < LEITURA_MS) return;
         visto = '';
+        bip();
         if (navigator.vibrate) navigator.vibrate(80);
         await pararLeitor();
         aoLer(txt);
@@ -2658,10 +2675,11 @@ const FUNCS = [
   { k: 'stock',   nome: '📦 Stock',             txt: 'Botão 📦 (desligado = trabalha sempre sem stock)' },
   { k: 'livros',  nome: '📚 Livros',            txt: 'PNL, EMRC e Catequese nas Saídas e Entradas' },
   { k: 'qr',      nome: '📷 Ler QR',            txt: 'Câmara nas Saídas e Entradas' },
-  { k: 'sacos',   nome: '📦 Sacos',             txt: 'Aviso "Escreve no saco" e sugestão "vem de um saco?"' }
+  { k: 'sacos',   nome: '📦 Sacos',             txt: 'Aviso "Escreve no saco" e sugestão "vem de um saco?"' },
+  { k: 'som',     nome: '🔊 Som ao ler QR',     txt: 'Bip quando a câmara lê um código' }
 ];
-const PRESET_SIMPLES = { inv: false, fic: true, papel: false, medir: false, forms: false, manuais: false, stock: false, livros: true, qr: false, sacos: false };
-const PRESET_COMPLETO = { inv: true, fic: true, papel: true, medir: true, forms: true, manuais: true, stock: true, livros: true, qr: true, sacos: true };
+const PRESET_SIMPLES = { inv: false, fic: true, papel: false, medir: false, forms: false, manuais: false, stock: false, livros: true, qr: false, sacos: false, som: true };
+const PRESET_COMPLETO = { inv: true, fic: true, papel: true, medir: true, forms: true, manuais: true, stock: true, livros: true, qr: true, sacos: true, som: true };
 let AJ = (() => { try { const s = JSON.parse(lerGuardado('fardasv1_ajustes') || 'null'); return s ? Object.assign({}, PRESET_COMPLETO, s) : Object.assign({}, PRESET_SIMPLES); } catch (e) { return Object.assign({}, PRESET_SIMPLES); } })();
 const iguais = (a, b) => FUNCS.every(f => !!a[f.k] === !!b[f.k]);
 

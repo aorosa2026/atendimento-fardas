@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Banco de Fardas</title>
+<!-- App instalável "Banco de Fardas": junta o Atendimento das fardas e o Stock de Manuais.
+     As duas apps continuam a funcionar sozinhas pelos links de sempre. Sem dados nem palavras-passe aqui. -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6b3f69">
+<link rel="icon" type="image/png" sizes="512x512" href="atendimento-512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="atendimento-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Fardas">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+  :root { --nav: 62px; --cor: #6b3f69; }
+  html, body { margin: 0; height: 100%; background: #f6f4ef; font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; overflow: hidden; }
+  .apps { position: fixed; top: 0; left: 0; right: 0; bottom: calc(var(--nav) + env(safe-area-inset-bottom)); }
+  .apps iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #f6f4ef; visibility: hidden; }
+  .apps iframe.on { visibility: visible; }
+  nav { position: fixed; left: 0; right: 0; bottom: 0; height: var(--nav); padding-bottom: env(safe-area-inset-bottom);
+        display: flex; background: #fff; border-top: 1px solid #e2ded6; box-shadow: 0 -2px 10px rgba(0,0,0,.06); }
+  nav button { position: relative; flex: 1; border: 0; background: none; font: inherit; font-size: .82rem; font-weight: 700; color: #6b7478;
+               display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  nav button span { font-size: 1.4rem; line-height: 1; }
+  nav button.on { color: var(--cor); }
+  nav button.on::before { content: ""; position: absolute; top: 0; width: 60px; height: 3px; background: var(--cor); border-radius: 0 0 3px 3px; }
+</style>
+</head>
+<body>
+<div class="apps">
+  <iframe id="app-fardas" title="Fardas" allow="camera; clipboard-write" src="atendimento.html"></iframe>
+  <iframe id="app-manuais" title="Manuais" allow="camera; clipboard-write"></iframe>
+</div>
+<nav>
+  <button data-app="fardas"><span>🧾</span>Fardas</button>
+  <button data-app="manuais"><span>📚</span>Manuais</button>
+</nav>
+<script>
+  window.MOLDURA_FARDAS = true;   // as apps lá dentro sabem que estão na moldura
+  const URL_MANUAIS = '../stock-livros/';
+  const fr = { fardas: document.getElementById('app-fardas'), manuais: document.getElementById('app-manuais') };
+  let atual = 'fardas', ultimaPw = null;   // palavra-passe só em memória (nunca guardada pela moldura)
+  function lerG(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+  function guardarG(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+  function carregarManuais() { if (!fr.manuais.src) fr.manuais.src = URL_MANUAIS; }
+  function mostrar(app) {
+    if (!fr[app]) return;
+    if (app === 'manuais') carregarManuais();
+    atual = app; guardarG('moldura_app', app);
+    Object.keys(fr).forEach(k => fr[k].classList.toggle('on', k === app));
+    document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.app === app));
+  }
+  document.querySelectorAll('nav button').forEach(b => b.onclick = () => mostrar(b.dataset.app));
+
+  // Mensagens das duas apps (só do mesmo endereço e só dos dois quadros)
+  window.addEventListener('message', e => {
+    if (e.origin !== location.origin) return;
+    const quem = Object.keys(fr).find(k => fr[k].contentWindow === e.source);
+    if (!quem) return;
+    const d = e.data || {};
+    const outra = quem === 'fardas' ? 'manuais' : 'fardas';
+    if (d.tipo === 'molduraIr') mostrar(d.app === 'manuais' ? 'manuais' : 'fardas');
+    if (d.tipo === 'molduraPw' && d.pw) {
+      ultimaPw = { nome: d.nome || '', pw: d.pw };
+      if (fr[outra].src) fr[outra].contentWindow.postMessage({ tipo: 'molduraPw', nome: ultimaPw.nome, pw: ultimaPw.pw }, location.origin);
+      if (quem === 'fardas') setTimeout(carregarManuais, 800);   // já com sessão: prepara os Manuais para a troca ser instantânea
+    }
+    if (d.tipo === 'molduraPronto' && ultimaPw)
+      fr[quem].contentWindow.postMessage({ tipo: 'molduraPw', nome: ultimaPw.nome, pw: ultimaPw.pw }, location.origin);
+  });
+
+  mostrar(lerG('moldura_app') === 'manuais' ? 'manuais' : 'fardas');
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>

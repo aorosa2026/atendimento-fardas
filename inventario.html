@@ -119,7 +119,20 @@
   /* ⚙️ Personalizar: o que cada pessoa escolheu esconder */
   .tituloSimples { display:none; flex:1; font-size:1rem; } body.aj-sem-inv .tituloSimples { display:block; }
   body.aj-sem-inv .modos, body.aj-sem-inv #navInv { display:none !important; }
-  body.aj-sem-fic #navAt button[data-tab="fic"], body.aj-sem-fic #zonaFichas { display:none !important; }
+  body.aj-sem-fictab #navAt button[data-tab="fic"], body.aj-sem-fic #zonaFichas { display:none !important; }
+  /* PEDIDOS */
+  body.aj-sem-ped #navAt button[data-tab="ped"], body.aj-sem-ped .gfTabs button[data-f="pedido"] { display:none !important; }
+  .pl { border:1px solid var(--line); border-left:5px solid #cfcac0; border-radius:10px; padding:8px 10px; margin:8px 0; background:#fff; }
+  .pl.ok { border-left-color:#2e8b57; } .pl.pouco { border-left-color:#e0a100; } .pl.nao { border-left-color:#c0392b; } .pl.zero { opacity:.55; }
+  .pl .l1 { display:flex; justify-content:space-between; align-items:baseline; gap:8px; } .pl .l1 small { color:var(--muted); text-align:right; }
+  .pl .l2 { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:6px; }
+  .pl select { font:inherit; font-size:.9rem; padding:5px 6px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); max-width:100%; }
+  .pl .pst { font-size:.85rem; margin-top:5px; font-weight:600; } .pl.ok .pst { color:#1d6b3f; } .pl.pouco .pst { color:#7a5a00; } .pl.nao .pst { color:#a3402e; }
+  .pedNoCarro { font-size:.75rem; background:var(--ok); color:#155443; border-radius:6px; padding:1px 6px; font-weight:600; }
+  .ficha-it.ped .pedCorpo { cursor:default; }
+  #qrPedido { display:flex; justify-content:center; margin:8px 0; }
+  .qrDiscreto { font-size:.8rem; color:var(--muted); border:1px solid var(--line); background:#fff; border-radius:8px; padding:2px 8px; cursor:pointer; }
+  /* /PEDIDOS */
   body.aj-sem-papel #btnPapel, body.aj-sem-medir #btnMedir, body.aj-sem-forms #btnForms, body.aj-sem-manuais #btnManuais { display:none !important; }
   body.aj-sem-stock #btnStock, body.aj-sem-stock #avisoSemStock { display:none !important; }
   body.aj-sem-qr #zonaFichas > p.meta:last-child { display:none; }
@@ -325,6 +338,7 @@
       <button data-tab="ent">⬇ Entradas</button>
       <button data-tab="res">🧾 Resumo</button>
       <button data-tab="fic">📋 Fichas <span id="nFic"></span></button>
+      <button data-tab="ped">🛍 Pedidos <span id="nPed"></span></button><!-- PEDIDOS -->
     </nav>
     <nav class="tabs" id="navInv">
       <button data-tab="inv">👕 Inventário</button>
@@ -373,7 +387,7 @@
 
     <!-- Separador: Medir -->
     <div id="fundoGaveta" class="hidden"></div>
-    <div id="gavetaForm" class="hidden"><div class="gfTopo"><div class="gfTabs"><button data-f="credito">➕ Novo crédito</button><button data-f="entregas">📦 Entregas</button></div><a id="gfAbrir" target="_blank" rel="noopener" title="Abrir num separador à parte">↗</a><button class="x" id="gfFechar">✕</button></div><div id="gfNova" class="hidden"></div><iframe id="ifr_credito" title="Formulário novo crédito"></iframe><iframe id="ifr_entregas" title="Formulário entregas" class="hidden"></iframe></div>
+    <div id="gavetaForm" class="hidden"><div class="gfTopo"><div class="gfTabs"><button data-f="credito">➕ Novo crédito</button><button data-f="entregas">📦 Entregas</button><button data-f="pedido">🛍 Pedido</button></div><a id="gfAbrir" target="_blank" rel="noopener" title="Abrir num separador à parte">↗</a><button class="x" id="gfFechar">✕</button></div><div id="gfNova" class="hidden"></div><iframe id="ifr_credito" title="Formulário novo crédito"></iframe><iframe id="ifr_entregas" title="Formulário entregas" class="hidden"></iframe><iframe id="ifr_pedido" title="Formulário pedido" class="hidden"></iframe></div>
     <div id="tabMed" class="hidden">
       <div id="gavetaTopo"><b>📏 Medir</b><button id="btnFecharGaveta">✕ Fechar</button></div>
       <div class="card" style="margin-top:0">
@@ -500,6 +514,24 @@
         <p class="meta">Cada ficha é apagada quando o atendimento em que é usada fica gravado, ou ao fim de 14 dias.</p>
       </div>
     </div>
+
+    <!-- PEDIDOS: Separador Pedidos dos pais -->
+    <div id="tabPed" class="hidden">
+      <div class="card" style="margin-top:0">
+        <div class="sec-tit" style="margin-top:0"><span>🛍 Pedidos <small id="nPedT"></small></span><span><button id="btnPedAtual" class="link" style="padding:0">atualizar</button> <button id="btnPedQR" class="qrDiscreto" title="Mostrar / esconder o QR para os pais">▦ QR</button></span></div>
+        <div id="pedQRBox" class="hidden">
+          <p class="meta" style="margin:0">Os pais leem este QR e fazem o pedido no telemóvel.</p>
+          <div id="qrPedido"></div>
+          <div class="acoes"><a id="linkPedido" class="btn" target="_blank" rel="noopener" style="background:#ebe7df;text-align:center;text-decoration:none;color:var(--ink)">Abrir o pedido</a>
+            <button id="btnCopiarPedido" class="btn" style="background:#ebe7df">Copiar link</button></div>
+        </div>
+        <input id="pedQ" type="search" placeholder="Nome ou código (P-1234)" autocomplete="off" style="margin-top:6px">
+        <label class="chk" style="margin-top:4px"><input type="checkbox" id="pedEst"> Escolher o estado (desligado: tudo em C0)</label>
+        <div id="pedLista" style="margin-top:8px"><p class="meta">—</p></div>
+        <p class="meta">Cada pedido é apagado quando o atendimento em que é usado fica confirmado, ou ao fim de 14 dias.</p>
+      </div>
+    </div>
+    <!-- /PEDIDOS -->
   </section>
 </main>
 <div id="msg"></div>
@@ -586,6 +618,7 @@ async function entrar(automatico) {
     PODE_GUARDAR = true; guardarEstado();
     if (window.MOLDURA_AVISAR) window.MOLDURA_AVISAR();   // MOLDURA: passa a palavra-passe aos Manuais
     carregarPecasFundo();
+    if (AJ.ped) carregarPedidos(true);   // PEDIDOS: contador no separador
   } catch (e) {
     const pwErrada = /palavra-passe/i.test(e.message || '');
     if (pwErrada) guardar('fardasv1_pw', '');      // só esquece a palavra-passe se estiver mesmo errada
@@ -608,8 +641,8 @@ window.addEventListener('online', () => {
 });
 
 /* ---------- Separadores ---------- */
-const SEPARADORES = { sai: 'tabAt', ent: 'tabAt', res: 'tabRes', fic: 'tabFic', inv: 'tabInv', med: 'tabMed', esp: 'tabEsp', arr: 'tabArr' };
-const TABS_AT = ['sai', 'ent', 'res', 'fic'];
+const SEPARADORES = { sai: 'tabAt', ent: 'tabAt', res: 'tabRes', fic: 'tabFic', ped: 'tabPed', inv: 'tabInv', med: 'tabMed', esp: 'tabEsp', arr: 'tabArr' };   // ped = PEDIDOS
+const TABS_AT = ['sai', 'ent', 'res', 'fic', 'ped'];
 const MODO_INICIAL = 'inv';   // este ficheiro abre do lado do Inventário; o outro lado está no mesmo ecrã (botões em cima)
 let TAB_ATUAL = MODO_INICIAL === 'at' ? 'sai' : 'inv';
 const ULTIMO_TAB = { at: 'sai', inv: 'inv' };
@@ -625,6 +658,7 @@ async function irPara(tab) {
   if (tab === 'sai' || tab === 'ent') { pesqA.value = ''; mudarModoAt(tab === 'sai' ? 'leva' : 'entrega'); desenharAt(); if (tab === 'ent') carregarFichas(); }
   else if (tab === 'res') { desenharAt(); carregarHist(); }
   else if (tab === 'fic') carregarFichas();
+  else if (tab === 'ped') { listarPedidos(); carregarPedidos(); }   // PEDIDOS
   else if (tab === 'arr') carregarPecas();
   else if (tab === 'med') desenharMedir();
   else if (tab === 'esp') carregarEspera();
@@ -736,6 +770,7 @@ async function abrirSemTamanho(t) {
 }
 function abrirPorCodigo(txt) {
   if (/^FICHA:/i.test(String(txt).trim())) { abrirFicha(String(txt).trim().slice(6).trim()); return; }
+  if (/^PEDIDO:/i.test(String(txt).trim())) { abrirPedidoCodigo(String(txt).trim().slice(7)); return; }   // PEDIDOS
   const t = tipoSemTamDoQR(txt);
   if (t) { abrirSemTamanho(t); return; }
   if (t === false) return;
@@ -1023,6 +1058,7 @@ document.querySelectorAll('#modoAt button').forEach(b => b.onclick = () => mudar
 // O QR mostra a peça na lista, com os botões dos estados para escolher
 document.getElementById('scanA').onclick = e => iniciarLeitor('leitorA', e.currentTarget, t => {
   if (/^FICHA:/i.test(String(t).trim())) { abrirFicha(String(t).trim().slice(6).trim()); return; }
+  if (/^PEDIDO:/i.test(String(t).trim())) { abrirPedidoCodigo(String(t).trim().slice(7)); return; }   // PEDIDOS
   const st = tipoSemTamDoQR(t);
   if (st) { abrirSemTamanho(st); return; }
   if (st === false) return;
@@ -1430,7 +1466,7 @@ function resumoAt() {
 }
 
 function limparAt() {
-  CARRO.leva = {}; CARRO.entrega = {}; CARRO.espera = {}; CARRO.semL = {}; CARRO.semE = {}; CARRO_LIV.leva = {}; CARRO_LIV.entrega = {}; idPendente = null;
+  CARRO.leva = {}; CARRO.entrega = {}; CARRO.espera = {}; CARRO.semL = {}; CARRO.semE = {}; CARRO_LIV.leva = {}; CARRO_LIV.entrega = {}; idPendente = null; PEDIDO_ATUAL = null;
   FICHA_ATUAL = null; VERIF = null; desenharVerif();
   pesqA.value = ''; ABERTO_A = null; filtroA.cat = filtroA.sub = ''; filtroA.tam = []; desenharFiltrosA(); listarA();
   tirarTalao();
@@ -1457,8 +1493,9 @@ document.getElementById('btnConfirmar').onclick = async () => {
   linhasSem().forEach(l => linhas.push(l));
   ['leva', 'entrega'].forEach(dir => Object.entries(CARRO_LIV[dir]).forEach(([sub, qtd]) => linhas.push({ tipo: 'livro', sub, dir, qtd })));
   try {
-    const r = await api('atendimento', { idAt: idPendente, talao: TALAO ? TALAO.canhao : '', ficha: FICHA_ATUAL ? FICHA_ATUAL.codigo : '', linhas });
+    const r = await api('atendimento', { idAt: idPendente, talao: TALAO ? TALAO.canhao : '', ficha: FICHA_ATUAL ? FICHA_ATUAL.codigo : '', pedido: PEDIDO_ATUAL ? PEDIDO_ATUAL.codigo : '', linhas });
     if (r.fichaApagada) { FICHAS = FICHAS.filter(f => f.codigo !== (FICHA_ATUAL || {}).codigo); contarFichas(); }
+    if (r.pedidoApagado) { PEDIDOS = PEDIDOS.filter(p => p.codigo !== (PEDIDO_ATUAL || {}).codigo); contarPedidos(); }   // PEDIDOS
     atualizarStocks(r.stocks);
     limparAt();
     contarEspera();
@@ -1929,7 +1966,7 @@ document.getElementById('filtroMed').addEventListener('input', calcularMedida);
 const RASCUNHO = 'fardasv1_rascunho', VALIDADE_MS = 2 * 3600 * 1000;
 function temAtendimento() {
   return Object.keys(CARRO.leva).length + Object.keys(CARRO.entrega).length + Object.keys(CARRO.espera).length + Object.keys(CARRO.semL).length + Object.keys(CARRO.semE).length +
-    Object.keys(CARRO_LIV.leva).length + Object.keys(CARRO_LIV.entrega).length > 0 || !!TALAO || !!FICHA_ATUAL;
+    Object.keys(CARRO_LIV.leva).length + Object.keys(CARRO_LIV.entrega).length > 0 || !!TALAO || !!FICHA_ATUAL || !!PEDIDO_ATUAL;
 }
 let PODE_GUARDAR = false;   // fica true depois de recuperar o rascunho ao entrar
 function guardarEstado() {
@@ -1938,7 +1975,7 @@ function guardarEstado() {
   try {
     if (!temAtendimento()) { localStorage.removeItem(RASCUNHO); return; }
     localStorage.setItem(RASCUNHO, JSON.stringify({
-      v: 2, t: Date.now(), leva: CARRO.leva, entrega: CARRO.entrega, espera: CARRO.espera, semL: CARRO.semL, semE: CARRO.semE, liv: CARRO_LIV, talao: TALAO, ficha: FICHA_ATUAL, idPendente
+      v: 2, t: Date.now(), leva: CARRO.leva, entrega: CARRO.entrega, espera: CARRO.espera, semL: CARRO.semL, semE: CARRO.semE, liv: CARRO_LIV, talao: TALAO, ficha: FICHA_ATUAL, pedido: PEDIDO_ATUAL, idPendente
     }));
   } catch (e) {}
 }
@@ -1959,6 +1996,7 @@ async function restaurarEstado(ficar) {   // ficar = não mudar de separador (qu
   CARRO_LIV.entrega = Object.assign({}, (s.liv || {}).entrega || {});
   idPendente = s.idPendente || null;
   FICHA_ATUAL = s.ficha || null;
+  PEDIDO_ATUAL = s.pedido || null;   // PEDIDOS
   if (s.talao) escolherTalao(s.talao);
   if (!ficar) await irPara('res');
   toast('↩ Atendimento em curso recuperado');
@@ -2170,6 +2208,8 @@ function desenharResumo(c) {
   if (!ul) return;
   fi.innerHTML = FICHA_ATUAL ? '<div class="aviso" style="background:#e3f2ec;color:#155443;margin:0 0 8px">📋 Ficha <b>' + esc(FICHA_ATUAL.codigo) + '</b> · ' + esc(FICHA_ATUAL.nome) +
     ' — é apagada quando confirmares.' + (FICHA_ATUAL.recusadas.length ? '<br>Não aceites: ' + esc(FICHA_ATUAL.recusadas.join('; ')) : '') + '</div>' : '';
+  if (PEDIDO_ATUAL) fi.innerHTML += '<div class="aviso" style="background:#e3f2ec;color:#155443;margin:0 0 8px">🛍 Pedido <b>' + esc(PEDIDO_ATUAL.codigo) + '</b> · ' + esc(PEDIDO_ATUAL.nome) +
+    ' — é apagado quando confirmares.' + ((PEDIDO_ATUAL.falta || []).length ? '<br>Não havia: ' + esc(PEDIDO_ATUAL.falta.join('; ')) : '') + '</div>';   // PEDIDOS
   const li = (txt, v) => '<li><span>' + txt + '</span><b>' + eur(v) + '</b></li>';
   let h = '';
   const sai = Object.entries(CARRO.leva), ent = Object.entries(CARRO.entrega), esp = Object.entries(CARRO.espera);
@@ -2234,21 +2274,25 @@ document.getElementById('btnManuais').onclick = () => {
    Carregam em segundo plano pouco depois de entrar; ao abrir, aparecem logo.
    Depois de enviar uma resposta, ao fechar a gaveta o formulário volta a ficar em branco para a próxima. */
 let FORMS = { credito: '', entregas: '' }, FORM_ATUAL = 'credito';
-const CARGAS = { credito: 0, entregas: 0 };
+const CARGAS = { credito: 0, entregas: 0, pedido: 0 };
+const FORMS_K = ['credito', 'entregas', 'pedido'];   // pedido = PEDIDOS (escondido se o separador Pedidos estiver desligado)
+const formLigado = f => f !== 'pedido' || AJ.ped;
 const urlEmbutido = u => /docs\.google\.com\/forms\//.test(u) ? u + (u.includes('?') ? '&' : '?') + 'embedded=true' : u;
 function carregarForm(f) { const fr = document.getElementById('ifr_' + f); if (!FORMS[f] || !fr) return; CARGAS[f] = 0; fr.src = urlEmbutido(FORMS[f]); }
 function prepararForms() {
   if (!FORMS.entregas) FORMS.entregas = API_URL + '?action=ficha';   // formulário de entregas = a ficha dos pais
-  const tem = ['credito', 'entregas'].filter(f => FORMS[f]);
+  FORMS.pedido = API_URL + '?action=pedido';                          // PEDIDOS
+  const tem = FORMS_K.filter(f => FORMS[f] && formLigado(f));
   document.getElementById('btnForms').classList.toggle('hidden', !tem.length);
   document.querySelectorAll('.gfTabs button').forEach(b => b.classList.toggle('hidden', !FORMS[b.dataset.f]));
   if (!FORMS[FORM_ATUAL] && tem.length) FORM_ATUAL = tem[0];
   setTimeout(() => tem.forEach(f => { if (!document.getElementById('ifr_' + f).src) carregarForm(f); }), 2500);
 }
-['credito', 'entregas'].forEach(f => { const fr = document.getElementById('ifr_' + f); if (fr) fr.addEventListener('load', () => { if (fr.src) CARGAS[f]++; }); });
+FORMS_K.forEach(f => { const fr = document.getElementById('ifr_' + f); if (fr) fr.addEventListener('load', () => { if (fr.src) CARGAS[f]++; }); });
 function mostrarForm(f) {
+  if (!formLigado(f)) f = 'credito';
   FORM_ATUAL = f;
-  ['credito', 'entregas'].forEach(x => document.getElementById('ifr_' + x).classList.toggle('hidden', x !== f));
+  FORMS_K.forEach(x => document.getElementById('ifr_' + x).classList.toggle('hidden', x !== f));
   document.querySelectorAll('.gfTabs button').forEach(b => b.classList.toggle('sel', b.dataset.f === f));
   document.getElementById('gfAbrir').href = FORMS[f] || '#';
   if (!document.getElementById('ifr_' + f).src) carregarForm(f);
@@ -2266,7 +2310,7 @@ function fecharForms() {
   document.getElementById('fundoGaveta').classList.add('hidden');
   document.getElementById('gfNova').classList.add('hidden');
   // mais de uma carga = a resposta foi enviada → volta a pôr o formulário em branco
-  ['credito', 'entregas'].forEach(f => { if (CARGAS[f] > 1) carregarForm(f); });
+  FORMS_K.forEach(f => { if (CARGAS[f] > 1) carregarForm(f); });
 }
 /* Ficha dos pais preenchida ao balcão (aba Entregas): ao enviar, a ficha avisa a app com o código */
 window.addEventListener('message', e => {
@@ -2281,6 +2325,17 @@ window.addEventListener('message', e => {
   bar.querySelector('button').onclick = async () => { fecharForms(); await carregarFichas(); abrirFicha(d.codigo); };
 });
 let FICHAS_NOVA = '';
+// PEDIDOS: pedido preenchido ao balcão (aba Pedido): ao enviar, avisa a app com o código
+window.addEventListener('message', e => {
+  const d = e.data || {};
+  if (d.tipo !== 'pedidoEnviado' || !/^P-\d{4}$/.test(String(d.codigo || ''))) return;
+  if (!/(\.googleusercontent\.com|script\.google\.com)$/.test(new URL(e.origin).hostname)) return;
+  CARGAS.pedido = 2;                        // ao fechar, o pedido volta a ficar em branco
+  const bar = document.getElementById('gfNova');
+  bar.innerHTML = '✔ Pedido <b>' + esc(d.codigo) + '</b> criado <button>➜ Abrir nos Pedidos</button>';
+  bar.classList.remove('hidden');
+  bar.querySelector('button').onclick = async () => { fecharForms(); await carregarPedidos(true); abrirPedidoCodigo(d.codigo); };
+});
 document.getElementById('btnForms').onclick = () => document.getElementById('gavetaForm').classList.contains('hidden') ? abrirForms() : fecharForms();
 document.querySelectorAll('.gfTabs button').forEach(b => b.onclick = () => mostrarForm(b.dataset.f));
 document.getElementById('gfFechar').onclick = fecharForms;
@@ -2657,13 +2712,195 @@ function mostrarSaco(cod) {
 document.getElementById('btnPecasAtual').onclick = carregarPecas;
 
 /* =====================================================================
+   🛍 PEDIDOS DOS PAIS (P-####)   — tudo o que é dos pedidos está marcado com PEDIDOS
+   Os pais leem o QR (botão discreto ▦ QR no separador) e dizem que peças procuram (tipo, tamanho, quantidade).
+   Aqui: procurar pelo nome/código → ver o stock de cada linha → corrigir tamanho, quantidade (e estado) → Enviar para Saídas.
+   O pedido é apagado quando o atendimento fica confirmado, ou ao fim de 14 dias (o servidor apaga-o).
+   ===================================================================== */
+let PEDIDOS = [], PEDIDO_ATUAL = null, PED_ABERTO = null;
+const PED_ED = {};                                    // linhas editadas de cada pedido aberto (por código)
+const URL_PEDIDO = API_URL + '?action=pedido';
+let PED_EST = lerGuardado('fardasv1_pedEst') === '1';   // escolher o estado (desligado = tudo C0)
+
+// Estado por defeito: o que tem o código C0 (folha Estados); se não houver, "Boa". Só estados que esta peça aceita.
+function estPadraoPed(tipo) {
+  const ok = estadosDe(tipoInfo(tipo)).map(e => e.chave);
+  const c0 = ESTADOS.find(e => String(e.cod || '').trim().toUpperCase() === 'C0') || ESTADOS.find(e => e.chave === 'Boa') || ESTADOS[0];
+  return ok.includes(c0.chave) ? c0.chave : ok[0];
+}
+async function carregarPedidos(silencioso) {
+  try {
+    const r = await api('pedidos');
+    const antes = PEDIDOS.map(p => p.codigo).join(',');
+    PEDIDOS = r.pedidos || [];
+    Object.keys(PED_ED).forEach(k => { if (!PEDIDOS.some(p => p.codigo === k)) delete PED_ED[k]; });
+    contarPedidos();
+    if (!silencioso || antes !== PEDIDOS.map(p => p.codigo).join(',')) listarPedidos();
+  } catch (e) { if (!silencioso) toast('Pedidos: ' + e.message); }
+}
+function contarPedidos() {
+  const n = PEDIDOS.length;
+  document.getElementById('nPed').textContent = n ? '(' + n + ')' : '';
+  document.getElementById('nPedT').textContent = n ? n + (n === 1 ? ' pedido' : ' pedidos') : '';
+}
+function edPedido(p) {
+  if (!PED_ED[p.codigo]) PED_ED[p.codigo] = p.linhas.map(x => {
+    const tams = tamsDoTipoSem(x.tipo);
+    return { tipo: x.tipo, pediu: x.tamanho || '', tam: tams.includes(x.tamanho) ? x.tamanho : '', qtd: x.qtd, pedidas: x.qtd, est: estPadraoPed(x.tipo) };
+  });
+  return PED_ED[p.codigo];
+}
+// Stock disponível desta peça (já desconta o que está no carrinho). null = sem stock (📦) ou tamanho por escolher
+function stockPed(tipo, tam, est) {
+  if (SEM_STOCK || !tam) return null;
+  const a = ARTIGOS.find(x => x.subcategoria === tipo && x.tamanho === tam);
+  if (!a) return { a: null, n: 0, outros: 0 };
+  const outros = ESTADOS.reduce((s, e) => e.chave === est ? s : s + Math.max(0, disponivel(a, e.chave)), 0);
+  return { a, n: Math.max(0, disponivel(a, est)), outros };
+}
+function listarPedidos() {
+  const box = document.getElementById('pedLista'); if (!box) return;
+  const k = semAcentos(document.getElementById('pedQ').value.trim());
+  const l = PEDIDOS.filter(p => !k || semAcentos(p.codigo + ' ' + p.nome).includes(k));
+  box.innerHTML = '';
+  if (!l.length) { box.innerHTML = '<p class="meta">' + (k ? 'Nenhum pedido encontrado.' : 'Não há pedidos.') + '</p>'; return; }
+  l.forEach(p => {
+    const d = document.createElement('details'); d.className = 'ficha-it ped';
+    const np = p.linhas.reduce((a, x) => a + (Number(x.qtd) || 0), 0);
+    d.innerHTML = '<summary><b>' + esc(p.nome) + '</b> · ' + esc(p.codigo) +
+      (PEDIDO_ATUAL && PEDIDO_ATUAL.codigo === p.codigo ? ' <span class="pedNoCarro">no carrinho</span>' : '') +
+      '<small>' + np + (np === 1 ? ' peça' : ' peças') + ' · ' + esc(p.data) + (p.dias != null ? ' · apaga-se daqui a ' + p.dias + (p.dias === 1 ? ' dia' : ' dias') : '') + '</small></summary><div class="pedCorpo"></div>';
+    const corpo = d.querySelector('.pedCorpo');
+    d.addEventListener('toggle', () => {
+      if (d.open) { PED_ABERTO = p.codigo; desenharPedido(p, corpo); }
+      else if (PED_ABERTO === p.codigo) PED_ABERTO = null;
+    });
+    if (PED_ABERTO === p.codigo) { d.open = true; desenharPedido(p, corpo); }
+    box.appendChild(d);
+  });
+}
+function desenharPedido(p, el) {
+  const L = edPedido(p);
+  el.innerHTML = '';
+  if (SEM_STOCK) el.insertAdjacentHTML('beforeend', '<p class="meta" style="margin:6px 0 0">📦 Modo sem stock: não há stock para mostrar.</p>');
+  L.forEach(x => {
+    const t = tipoInfo(x.tipo), tams = tamsDoTipoSem(x.tipo), s = stockPed(x.tipo, x.tam, x.est);
+    let cor = '', txt = '';
+    if (!x.qtd) { cor = 'zero'; txt = 'Não leva (quantidade 0)'; }
+    else if (SEM_STOCK) txt = '';
+    else if (!x.tam) { cor = 'pouco'; txt = 'Escolhe o tamanho'; }
+    else if (!s.a) { cor = 'nao'; txt = '✕ Este tamanho não existe na lista'; }
+    else {
+      const emEst = PED_EST ? '' : ' em ' + esc(estCurto(x.est));   // sem escolher o estado: é sempre C0
+      if (s.n >= x.qtd) { cor = 'ok'; txt = '✔ Há ' + s.n + emEst; }
+      else if (s.n > 0) { cor = 'pouco'; txt = '⚠ Só há ' + s.n + emEst; }
+      else { cor = 'nao'; txt = '✕ Não há' + emEst; }
+      if (s.n < x.qtd && s.outros) txt += ' · há ' + s.outros + ' noutros estados';
+    }
+    const optTam = '<option value="">' + (SEM_STOCK ? 's/ tamanho' : '— tamanho —') + '</option>' + tams.map(z => {
+      const sz = stockPed(x.tipo, z, x.est);
+      return '<option value="' + esc(z) + '"' + (z === x.tam ? ' selected' : '') + '>' + esc(z) + (sz && sz.a ? ' · ' + sz.n : '') + (z === x.pediu ? ' ← pediu' : '') + '</option>';
+    }).join('');
+    const optEst = estadosDe(t).map(e => '<option value="' + esc(e.chave) + '"' + (e.chave === x.est ? ' selected' : '') + '>' + esc(e.nome) + '</option>').join('');
+    const d = document.createElement('div'); d.className = 'pl ' + cor;
+    d.innerHTML = '<div class="l1"><b>' + esc(x.tipo) + '</b><small>pediu ' + (x.pediu ? 'tam. ' + esc(x.pediu) : 'sem tamanho') + ' × ' + x.pedidas + '</small></div>' +
+      '<div class="l2"><select class="pTam">' + optTam + '</select>' + (PED_EST ? '<select class="pEst">' + optEst + '</select>' : '') +
+      '<div class="mini"><button class="m">−</button><span>' + x.qtd + '</span><button class="M">+</button></div></div>' +
+      (txt ? '<div class="pst">' + txt + '</div>' : '');
+    d.querySelector('.pTam').onchange = e => { x.tam = e.target.value; desenharPedido(p, el); };
+    const se = d.querySelector('.pEst'); if (se) se.onchange = e => { x.est = e.target.value; desenharPedido(p, el); };
+    d.querySelector('.m').onclick = () => { x.qtd = Math.max(0, x.qtd - 1); desenharPedido(p, el); };
+    d.querySelector('.M').onclick = () => { x.qtd = Math.min(20, x.qtd + 1); desenharPedido(p, el); };
+    el.appendChild(d);
+  });
+  const ac = document.createElement('div'); ac.className = 'acoes';
+  const noCarro = PEDIDO_ATUAL && PEDIDO_ATUAL.codigo === p.codigo;
+  ac.innerHTML = '<button class="btn btn-acc enviar"' + (noCarro ? ' disabled' : '') + '>' + (noCarro ? '✔ Já está nas Saídas' : '➜ Enviar para Saídas') + '</button><button class="btn btn-sai apagar">🗑 Apagar pedido</button>';
+  ac.querySelector('.enviar').onclick = () => enviarPedido(p);
+  ac.querySelector('.apagar').onclick = () => apagarPedido(p);
+  el.appendChild(ac);
+  if (noCarro) el.insertAdjacentHTML('beforeend', '<p class="meta" style="margin:6px 0 0">Para acrescentar mais peças, usa as Saídas como habitualmente.</p>');
+}
+async function enviarPedido(p) {
+  if (PEDIDO_ATUAL && PEDIDO_ATUAL.codigo !== p.codigo) { toast('Este atendimento já tem o pedido ' + PEDIDO_ATUAL.codigo + '. Confirma ou limpa antes de usar outro.'); return; }
+  if (PEDIDO_ATUAL) { toast('Este pedido já está nas Saídas.'); return; }
+  const L = edPedido(p).filter(x => x.qtd > 0);
+  if (!L.length) { toast('Nada para enviar (todas as quantidades a 0).'); return; }
+  if (!SEM_STOCK) {
+    const semTam = L.filter(x => !x.tam).map(x => x.tipo);
+    if (semTam.length) { toast('Falta escolher o tamanho: ' + semTam.join(', ')); return; }
+  }
+  const falta = [];
+  let n = 0;
+  L.forEach(x => {
+    if (SEM_STOCK) { const k = chaveS(x.tipo, x.tam, x.est); CARRO.semL[k] = (CARRO.semL[k] || 0) + x.qtd; n += x.qtd; return; }
+    const s = stockPed(x.tipo, x.tam, x.est);
+    if (!s || !s.a) { falta.push(x.tipo + ' ' + x.tam + ' (não existe)'); return; }
+    const q = Math.min(x.qtd, s.n);   // nunca mais do que há (o servidor recusaria o atendimento)
+    if (q < x.qtd) falta.push(x.tipo + ' ' + x.tam + ' (faltam ' + (x.qtd - q) + ')');
+    if (q) { const k = chaveC(s.a.id, x.est); CARRO.leva[k] = (CARRO.leva[k] || 0) + q; n += q; }
+  });
+  if (!n) { toast('Não há stock para nenhuma linha. Muda o tamanho, o estado ou a quantidade.'); return; }
+  PEDIDO_ATUAL = { codigo: p.codigo, nome: p.nome, falta };
+  idPendente = null;
+  desenharAt(); guardarEstado();
+  await irPara('sai');
+  toast('⬆ ' + n + (n === 1 ? ' peça' : ' peças') + ' do pedido ' + p.codigo + ' nas Saídas' + (falta.length ? ' · não havia: ' + falta.join('; ') : ''));
+}
+async function apagarPedido(p) {
+  if (!confirm('Apagar o pedido ' + p.codigo + ' (' + p.nome + ')? Não dá para desfazer.')) return;
+  try {
+    await api('apagarPedido', { codigo: p.codigo });
+    PEDIDOS = PEDIDOS.filter(x => x.codigo !== p.codigo); delete PED_ED[p.codigo];
+    if (PEDIDO_ATUAL && PEDIDO_ATUAL.codigo === p.codigo) { PEDIDO_ATUAL = null; guardarEstado(); }   // as peças ficam nas Saídas
+    contarPedidos(); listarPedidos(); toast('Pedido apagado.');
+  } catch (e) { toast('Erro: ' + e.message); }
+}
+async function abrirPedidoCodigo(cod) {
+  cod = String(cod || '').trim().toUpperCase();
+  if (TAB_ATUAL !== 'ped') await irPara('ped');
+  if (!PEDIDOS.some(p => p.codigo === cod)) await carregarPedidos(true);
+  if (!PEDIDOS.some(p => p.codigo === cod)) { toast('Pedido ' + cod + ' não encontrado (já atendido ou com mais de 14 dias?).'); return; }
+  document.getElementById('pedQ').value = ''; PED_ABERTO = cod; listarPedidos();
+}
+document.getElementById('pedQ').addEventListener('input', listarPedidos);
+document.getElementById('btnPedAtual').onclick = () => carregarPedidos();
+// QR para os pais: escondido; o botão discreto ▦ mostra/esconde
+document.getElementById('btnPedQR').onclick = () => {
+  const b = document.getElementById('pedQRBox'), q = document.getElementById('qrPedido');
+  b.classList.toggle('hidden');
+  if (!b.classList.contains('hidden') && !q.childNodes.length) {
+    try { if (typeof QRCode !== 'undefined') new QRCode(q, { text: URL_PEDIDO, width: 240, height: 240, correctLevel: QRCode.CorrectLevel.M }); } catch (e) {}
+  }
+};
+document.getElementById('linkPedido').href = URL_PEDIDO;
+document.getElementById('btnCopiarPedido').onclick = () => {
+  if (navigator.clipboard) navigator.clipboard.writeText(URL_PEDIDO).then(() => toast('Link copiado'), () => prompt('Copia o link:', URL_PEDIDO));
+  else prompt('Copia o link:', URL_PEDIDO);
+};
+const chkPedEst = document.getElementById('pedEst');
+chkPedEst.checked = PED_EST;
+chkPedEst.onchange = () => {
+  PED_EST = chkPedEst.checked; guardar('fardasv1_pedEst', PED_EST ? '1' : '');
+  if (!PED_EST) Object.values(PED_ED).forEach(L => L.forEach(x => { x.est = estPadraoPed(x.tipo); }));   // desligado: tudo C0
+  listarPedidos();
+};
+// Novos pedidos: verifica a cada minuto (com a app à vista e o separador Pedidos ligado)
+setInterval(() => {
+  if (AJ.ped && document.visibilityState === 'visible' && !document.getElementById('ecraApp').classList.contains('hidden')) carregarPedidos(true);
+}, 60000);
+/* /PEDIDOS */
+
+/* =====================================================================
    ⚙️ PERSONALIZAR: cada pessoa escolhe o que vê (fica guardado neste aparelho).
    Só muda o aspeto: nada é apagado nem desligado nos dados.
    Da primeira vez abre em "Simples".
    ===================================================================== */
 const FUNCS = [
   { k: 'inv',     nome: '👕 Inventário',        txt: 'Lado Inventário (Inventário, Medir, Espera, Arrumar)' },
-  { k: 'fic',     nome: '📋 Fichas',            txt: 'Separador Fichas e fichas nas Entradas' },
+  { k: 'fic',     nome: '📋 Fichas nas Entradas', txt: 'Procurar a ficha dos pais nas Entradas' },
+  { k: 'fictab',  nome: '📋 Separador Fichas',  txt: 'QR da ficha, lista completa e ficha em papel (OCR)' },
+  { k: 'ped',     nome: '🛍 Pedidos',           txt: 'Separador Pedidos e formulário Pedido (experimental)' },
   { k: 'papel',   nome: '📷 Ficha em papel',    txt: 'Leitor de fichas em papel' },
   { k: 'medir',   nome: '📏 Medir',             txt: 'Botão 📏 no cabeçalho' },
   { k: 'forms',   nome: '📝 Formulários',       txt: 'Novo crédito e entregas' },
@@ -2674,9 +2911,13 @@ const FUNCS = [
   { k: 'sacos',   nome: '📦 Sacos',             txt: 'Aviso "Escreve no saco" e sugestão "vem de um saco?"' },
   { k: 'som',     nome: '🔊 Som ao ler QR',     txt: 'Bip quando a câmara lê um código' }
 ];
-const PRESET_SIMPLES = { inv: false, fic: true, papel: false, medir: false, forms: false, manuais: false, stock: false, livros: true, qr: false, sacos: false, som: true };
-const PRESET_COMPLETO = { inv: true, fic: true, papel: true, medir: true, forms: true, manuais: true, stock: true, livros: true, qr: true, sacos: true, som: true };
-let AJ = (() => { try { const s = JSON.parse(lerGuardado('fardasv1_ajustes') || 'null'); return s ? Object.assign({}, PRESET_COMPLETO, s) : Object.assign({}, PRESET_SIMPLES); } catch (e) { return Object.assign({}, PRESET_SIMPLES); } })();
+const PRESET_SIMPLES = { inv: false, fic: true, fictab: false, ped: false, papel: false, medir: false, forms: false, manuais: false, stock: false, livros: true, qr: false, sacos: false, som: true };
+const PRESET_COMPLETO = { inv: true, fic: true, fictab: true, ped: true, papel: true, medir: true, forms: true, manuais: true, stock: true, livros: true, qr: true, sacos: true, som: true };
+let AJ = (() => { try { const s = JSON.parse(lerGuardado('fardasv1_ajustes') || 'null');
+  // escolhas guardadas antes destas opções: o separador Fichas fica como estava; Pedidos começa desligado
+  if (s && !('fictab' in s)) s.fictab = s.fic !== false;
+  if (s && !('ped' in s)) s.ped = false;
+  return s ? Object.assign({}, PRESET_COMPLETO, s) : Object.assign({}, PRESET_SIMPLES); } catch (e) { return Object.assign({}, PRESET_SIMPLES); } })();
 const iguais = (a, b) => FUNCS.every(f => !!a[f.k] === !!b[f.k]);
 
 function aplicarAjustes(primeira) {
@@ -2691,10 +2932,13 @@ function aplicarAjustes(primeira) {
   // Sem inventário: sai do lado Inventário; sem fichas: sai do separador Fichas
   if (!primeira && typeof TAB_ATUAL !== 'undefined') {
     if (!AJ.inv && !TABS_AT.includes(TAB_ATUAL)) irPara('sai');
-    else if (!AJ.fic && TAB_ATUAL === 'fic') irPara('ent');
+    else if (!AJ.fictab && TAB_ATUAL === 'fic') irPara('ent');
+    else if (!AJ.ped && TAB_ATUAL === 'ped') irPara('sai');   // PEDIDOS
   }
 }
 function guardarAjustes() { guardar('fardasv1_ajustes', JSON.stringify(AJ)); }
+// PEDIDOS: ao ligar o separador, mostra o separador e o formulário; ao desligar, esconde
+function ajustesPedidos() { if (typeof prepararForms === 'function' && FORMS.credito !== undefined && !document.getElementById('ecraApp').classList.contains('hidden')) { prepararForms(); if (AJ.ped) carregarPedidos(true); } }
 
 function abrirAjustes() {
   let d = document.getElementById('painelAjustes');
@@ -2716,10 +2960,10 @@ function abrirAjustes() {
   d.querySelector('#ajFechar').onclick = fecharAjustes;
   d.querySelectorAll('[data-pre]').forEach(b => b.onclick = () => {
     AJ = Object.assign({}, b.dataset.pre === 's' ? PRESET_SIMPLES : PRESET_COMPLETO);
-    guardarAjustes(); aplicarAjustes(); abrirAjustes();
+    guardarAjustes(); aplicarAjustes(); ajustesPedidos(); abrirAjustes();
     toast(b.dataset.pre === 's' ? '🙂 Modo simples' : '🧰 Modo completo');
   });
-  d.querySelectorAll('[data-k]').forEach(c => c.onchange = () => { AJ[c.dataset.k] = c.checked; guardarAjustes(); aplicarAjustes(); abrirAjustes(); });
+  d.querySelectorAll('[data-k]').forEach(c => c.onchange = () => { AJ[c.dataset.k] = c.checked; guardarAjustes(); aplicarAjustes(); ajustesPedidos(); abrirAjustes(); });
 }
 function fecharAjustes() { const d = document.getElementById('painelAjustes'); if (d) d.classList.add('hidden'); }
 document.getElementById('btnAjustes').onclick = abrirAjustes;

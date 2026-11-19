@@ -122,7 +122,7 @@
   body.aj-sem-inv .modos, body.aj-sem-inv #navInv { display:none !important; }
   body.aj-sem-fictab #navAt button[data-tab="fic"], body.aj-sem-fic #zonaFichas { display:none !important; }
   /* PEDIDOS */
-  body.aj-sem-ped #navAt button[data-tab="ped"], body.aj-sem-ped .gfTabs button[data-f="pedido"] { display:none !important; }
+  body.aj-sem-ped #navAt button[data-tab="ped"] { display:none !important; }
   .pl { border:1px solid var(--line); border-left:5px solid #cfcac0; border-radius:10px; padding:8px 10px; margin:8px 0; background:#fff; }
   .pl.ok { border-left-color:#2e8b57; } .pl.pouco { border-left-color:#e0a100; } .pl.nao { border-left-color:#c0392b; } .pl.zero { opacity:.55; }
   .pl .l1 { display:flex; justify-content:space-between; align-items:baseline; gap:8px; } .pl .l1 small { color:var(--muted); text-align:right; }
@@ -133,7 +133,7 @@
   .ficha-it.ped .pedCorpo { cursor:default; }
   #qrPedido { display:flex; justify-content:center; margin:8px 0; }
   .qrDiscreto { font-size:.8rem; color:var(--muted); border:1px solid var(--line); background:#fff; border-radius:8px; padding:2px 8px; cursor:pointer; }
-  body.aj-sem-ped #zonaPedidos, body.aj-sem-pedsai #zonaPedidos { display:none !important; }
+  body.aj-sem-pedsai #zonaPedidos { display:none !important; }
   .zTit { cursor:pointer; user-select:none; -webkit-user-select:none; }
   .zTit .seta { color:var(--muted); transition:transform .15s; padding:0 2px; }
   .zTit.fechado { margin-bottom:0 !important; } .zTit.fechado .seta { transform:rotate(-90deg); }
@@ -662,7 +662,7 @@ async function entrar(automatico) {
     PODE_GUARDAR = true; guardarEstado();
     if (window.MOLDURA_AVISAR) window.MOLDURA_AVISAR();   // MOLDURA: passa a palavra-passe aos Manuais
     carregarPecasFundo();
-    if (AJ.ped) carregarPedidos(true);   // PEDIDOS: contador no separador
+    if (pedLigado()) carregarPedidos(true);   // PEDIDOS: contador no separador
   } catch (e) {
     const pwErrada = /palavra-passe/i.test(e.message || '');
     if (pwErrada) guardar('fardasv1_pw', '');      // só esquece a palavra-passe se estiver mesmo errada
@@ -699,7 +699,7 @@ async function irPara(tab) {
   document.body.dataset.app = app; ULTIMO_TAB[app] = tab;
   const vis = SEPARADORES[tab];
   [...new Set(Object.values(SEPARADORES))].forEach(id => document.getElementById(id).classList.toggle('hidden', id !== vis));
-  if (tab === 'sai' || tab === 'ent') { pesqA.value = ''; mudarModoAt(tab === 'sai' ? 'leva' : 'entrega'); desenharAt(); if (tab === 'ent') carregarFichas(); if (tab === 'sai' && AJ.ped && AJ.pedsai) { listarPedidos(); carregarPedidos(true); } }
+  if (tab === 'sai' || tab === 'ent') { pesqA.value = ''; mudarModoAt(tab === 'sai' ? 'leva' : 'entrega'); desenharAt(); if (tab === 'ent') carregarFichas(); if (tab === 'sai' && AJ.pedsai) { listarPedidos(); carregarPedidos(true); } }
   else if (tab === 'res') { desenharAt(); carregarHist(); }
   else if (tab === 'fic') carregarFichas();
   else if (tab === 'ped') { listarPedidos(); carregarPedidos(); }   // PEDIDOS
@@ -2321,7 +2321,8 @@ document.getElementById('btnManuais').onclick = () => {
 let FORMS = { credito: '', entregas: '' }, FORM_ATUAL = 'credito';
 const CARGAS = { credito: 0, entregas: 0, pedido: 0 };
 const FORMS_K = ['credito', 'entregas', 'pedido'];   // pedido = PEDIDOS (escondido se o separador Pedidos estiver desligado)
-const formLigado = f => f !== 'pedido' || AJ.ped;
+const formLigado = f => true;   // o formulário Pedido aparece sempre com os Formulários
+const pedLigado = () => AJ.ped || AJ.pedsai;   // Separador Pedidos ou lista nas Saídas
 const urlEmbutido = u => /docs\.google\.com\/forms\//.test(u) ? u + (u.includes('?') ? '&' : '?') + 'embedded=true' : u;
 function carregarForm(f) { const fr = document.getElementById('ifr_' + f); if (!FORMS[f] || !fr) return; CARGAS[f] = 0; fr.src = urlEmbutido(FORMS[f]); }
 function prepararForms() {
@@ -2967,7 +2968,7 @@ chkPedEst.onchange = () => {
 };
 // Novos pedidos: verifica a cada minuto (com a app à vista e o separador Pedidos ligado)
 setInterval(() => {
-  if (AJ.ped && document.visibilityState === 'visible' && !document.getElementById('ecraApp').classList.contains('hidden')) carregarPedidos(true);
+  if (pedLigado() && document.visibilityState === 'visible' && !document.getElementById('ecraApp').classList.contains('hidden')) carregarPedidos(true);
 }, 60000);
 /* /PEDIDOS */
 
@@ -2980,7 +2981,7 @@ const FUNCS = [
   { k: 'inv',     nome: '👕 Inventário',        txt: 'Lado Inventário (Inventário, Medir, Espera, Arrumar)' },
   { k: 'fic',     nome: '📋 Fichas nas Entradas', txt: 'Procurar a ficha dos pais nas Entradas' },
   { k: 'fictab',  nome: '📋 Separador Fichas',  txt: 'QR da ficha, lista completa e ficha em papel (OCR)' },
-  { k: 'ped',     nome: '🛍 Pedidos',           txt: 'Separador Pedidos e formulário Pedido' },
+  { k: 'ped',     nome: '🛍 Separador Pedidos', txt: 'Lista completa dos pedidos e QR para os pais' },
   { k: 'pedsai',  nome: '🛍 Pedidos nas Saídas', txt: 'Lista dos pedidos dos pais nas Saídas' },
   { k: 'papel',   nome: '📷 Ficha em papel',    txt: 'Leitor de fichas em papel' },
   { k: 'medir',   nome: '📏 Medir',             txt: 'Botão 📏 no cabeçalho' },
@@ -2992,7 +2993,7 @@ const FUNCS = [
   { k: 'sacos',   nome: '📦 Sacos',             txt: 'Aviso "Escreve no saco" e sugestão "vem de um saco?"' },
   { k: 'som',     nome: '🔊 Som ao ler QR',     txt: 'Bip quando a câmara lê um código' }
 ];
-const PRESET_SIMPLES = { inv: false, fic: true, fictab: false, ped: false, pedsai: true, papel: false, medir: false, forms: false, manuais: false, stock: false, livros: true, qr: false, sacos: false, som: true };
+const PRESET_SIMPLES = { inv: false, fic: true, fictab: false, ped: false, pedsai: false, papel: false, medir: false, forms: false, manuais: false, stock: false, livros: true, qr: false, sacos: false, som: true };
 const PRESET_COMPLETO = { inv: true, fic: true, fictab: true, ped: true, pedsai: true, papel: true, medir: true, forms: true, manuais: true, stock: true, livros: true, qr: true, sacos: true, som: true };
 let AJ = (() => { try { const s = JSON.parse(lerGuardado('fardasv1_ajustes') || 'null');
   // escolhas guardadas antes destas opções: o separador Fichas fica como estava; Pedidos começa desligado
@@ -3020,7 +3021,7 @@ function aplicarAjustes(primeira) {
 }
 function guardarAjustes() { guardar('fardasv1_ajustes', JSON.stringify(AJ)); }
 // PEDIDOS: ao ligar o separador, mostra o separador e o formulário; ao desligar, esconde
-function ajustesPedidos() { if (typeof prepararForms === 'function' && FORMS.credito !== undefined && !document.getElementById('ecraApp').classList.contains('hidden')) { prepararForms(); if (AJ.ped) carregarPedidos(true); } }
+function ajustesPedidos() { if (typeof prepararForms === 'function' && FORMS.credito !== undefined && !document.getElementById('ecraApp').classList.contains('hidden')) { prepararForms(); if (pedLigado()) carregarPedidos(true); } }
 
 function abrirAjustes() {
   let d = document.getElementById('painelAjustes');

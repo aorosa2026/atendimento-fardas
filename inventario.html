@@ -111,7 +111,8 @@
   .btnArr:disabled { opacity:.45; }
   .mini2 { border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 11px; font:inherit; font-size:.82rem; font-weight:700; cursor:pointer; }
   #sugA li.sugSaco { display:block; background:#e6edf7; }
-  #sugA li.sugSaco button.mini2 { width:auto; height:auto; min-width:0; border-radius:999px; padding:6px 11px; font-size:.82rem; display:inline-block; line-height:1.3; }
+  .linhas li.sugSaco { display:block; border-top:0; padding:8px 10px; }
+  #sugA li.sugSaco button.mini2, #lLeva li.sugSaco button.mini2 { width:auto; height:auto; min-width:0; border-radius:999px; padding:6px 11px; font-size:.82rem; display:inline-block; line-height:1.3; }
   li.sugSaco { list-style:none; background:#e6edf7; border-radius:12px; padding:8px 10px; margin:8px 0; } li.sugSaco .mini2 { margin:3px 3px 0 0; }
   #avisoSaco { position:fixed; left:50%; bottom:90px; transform:translateX(-50%); z-index:90; background:#1f2a2e; color:#fff; border-radius:14px; padding:12px 16px; text-align:center; box-shadow:0 6px 24px rgba(0,0,0,.3); min-width:240px; }
   #avisoSaco b { display:block; font-size:1.8rem; letter-spacing:1px; margin:4px 0 8px; } #avisoSaco button { border:0; background:#fff; color:#1f2a2e; border-radius:999px; padding:7px 22px; font:inherit; font-weight:800; cursor:pointer; }
@@ -132,7 +133,22 @@
   .ficha-it.ped .pedCorpo { cursor:default; }
   #qrPedido { display:flex; justify-content:center; margin:8px 0; }
   .qrDiscreto { font-size:.8rem; color:var(--muted); border:1px solid var(--line); background:#fff; border-radius:8px; padding:2px 8px; cursor:pointer; }
+  body.aj-sem-ped #zonaPedidos, body.aj-sem-pedsai #zonaPedidos { display:none !important; }
+  .zTit { cursor:pointer; user-select:none; -webkit-user-select:none; }
+  .zTit .seta { color:var(--muted); transition:transform .15s; padding:0 2px; }
+  .zTit.fechado { margin-bottom:0 !important; } .zTit.fechado .seta { transform:rotate(-90deg); }
+  .l2 .r1 .sacoQ { border:1px solid #b9c9e2; background:#e6edf7; color:#2a4a7a; border-radius:999px; font-size:.78rem; padding:2px 7px; margin-right:4px; cursor:pointer; white-space:nowrap; }
   /* /PEDIDOS */
+  /* A PENSAR / A GUARDAR */
+  #barraOcup { position:fixed; top:0; left:0; right:0; height:3px; z-index:9999; overflow:hidden; pointer-events:none; opacity:0; transition:opacity .2s; }
+  #barraOcup.on { opacity:1; }
+  #barraOcup::before { content:''; position:absolute; top:0; bottom:0; width:40%; background:var(--acc); animation:ocupBarra 1.1s ease-in-out infinite; }
+  @keyframes ocupBarra { from { left:-40%; } to { left:100%; } }
+  #vGuardar { position:fixed; inset:0; z-index:9998; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.4); }
+  #vGuardar.hidden { display:none; }
+  #vGuardar div { background:#1f2a2e; color:#fff; padding:12px 18px; border-radius:12px; font-weight:600; display:flex; gap:10px; align-items:center; box-shadow:0 6px 24px rgba(0,0,0,.2); }
+  #vGuardar .giro { width:16px; height:16px; border:2px solid rgba(255,255,255,.35); border-top-color:#fff; border-radius:50%; animation:giroG .8s linear infinite; }
+  @keyframes giroG { to { transform:rotate(360deg); } }
   body.aj-sem-papel #btnPapel, body.aj-sem-medir #btnMedir, body.aj-sem-forms #btnForms, body.aj-sem-manuais #btnManuais { display:none !important; }
   body.aj-sem-stock #btnStock, body.aj-sem-stock #avisoSemStock { display:none !important; }
   body.aj-sem-qr #zonaFichas > p.meta:last-child { display:none; }
@@ -331,7 +347,7 @@
 
   <!-- ===== App ===== -->
   <section id="ecraApp" class="hidden">
-    <header class="hdrUni"><b class="tituloSimples">🧾 Banco de Fardas</b><div class="modos"><button data-modo="at"><span class="ico">🧾 </span>Atendimento</button><button data-modo="inv"><span class="ico">👕 </span>Inventário</button></div><button id="btnStock" class="hdrBtn" title="Stock ligado / desligado">📦</button><button id="btnMedir" class="hdrBtn" title="Medir (abre por cima, sem sair do atendimento)">📏</button><button id="btnForms" class="hdrBtn hidden" title="Formulários: novo crédito e entregas (abrem por cima, já carregados)">📝</button><button id="btnManuais" class="hdrBtn" title="Manuais (abre noutro separador, que fica aberto)">📚</button><button id="btnAjustes" class="hdrBtn" title="Personalizar: escolher o que aparece">⚙️</button><button class="sair" id="btnSair">sair</button></header>
+    <header class="hdrUni"><b class="tituloSimples">🧾 Banco de Fardas</b><div class="modos"><button data-modo="at"><span class="ico">🧾 </span>Atendimento</button><button data-modo="inv"><span class="ico">👕 </span>Inventário</button></div><button id="btnStock" class="hdrBtn" title="Stock ligado / desligado">📦</button><button id="btnMedir" class="hdrBtn" title="Medir (abre por cima, sem sair do atendimento)">📏</button><button id="btnForms" class="hdrBtn hidden" title="Formulários: novo crédito, entregas e pedidos (abrem por cima, já carregados)">📝</button><button id="btnManuais" class="hdrBtn" title="Manuais (abre noutro separador, que fica aberto)">📚</button><button id="btnAjustes" class="hdrBtn" title="Personalizar: escolher o que aparece">⚙️</button><button class="sair" id="btnSair">sair</button></header>
 
     <nav class="tabs" id="navAt">
       <button data-tab="sai">⬆ Saídas</button>
@@ -421,12 +437,23 @@
         <button data-m="entrega" class="ent">⬇ Entradas</button>
       </div>
       <div id="zonaFichas" class="so-ent card" style="margin-top:0">
-        <div class="sec-tit" style="margin-top:0">📋 Fichas dos pais <small id="nFichasE"></small></div>
-        <input id="fichaQ" type="search" placeholder="Nome, email ou código (F-1234)" autocomplete="off" style="margin-top:0">
-        <div id="fichasLista"></div>
+        <div class="sec-tit zTit" id="zFicTit" style="margin-top:0"><span>📋 Fichas dos pais <small id="nFichasE"></small></span><span class="seta">▾</span></div>
+        <div id="zFicCorpo">
+          <input id="fichaQ" type="search" placeholder="Nome, email ou código (F-1234)" autocomplete="off" style="margin-top:0">
+          <div id="fichasLista"></div>
+          <p class="meta" style="margin:6px 0 0">Também podes ler o QR da ficha com o botão abaixo.</p>
+        </div>
         <div id="verif"></div>
-        <p class="meta" style="margin:6px 0 0">Também podes ler o QR da ficha com o botão abaixo.</p>
       </div>
+      <!-- PEDIDOS: pedidos dos pais nas Saídas -->
+      <div id="zonaPedidos" class="so-sai card" style="margin-top:0">
+        <div class="sec-tit zTit" id="zPedTit" style="margin-top:0"><span>🛍 Pedidos dos pais <small id="nPedS"></small></span><span class="seta">▾</span></div>
+        <div id="zPedCorpo">
+          <input id="pedQS" type="search" placeholder="Nome ou código (P-1234)" autocomplete="off" style="margin-top:0">
+          <div id="pedListaS"></div>
+        </div>
+      </div>
+      <!-- /PEDIDOS -->
       <button id="scanA" class="btn btn-leva">📷 Ler QR da peça que sai</button>
       <div id="leitorA" style="margin-top:10px;border-radius:12px;overflow:hidden"></div>
       <input id="pesqA" type="search" placeholder="Saídas: procura polo 8, saia 10…" autocomplete="off">
@@ -501,15 +528,14 @@
     <!-- Separador: Fichas dos pais -->
     <div id="tabFic" class="hidden">
       <div class="card" style="margin-top:0">
-        <div class="sec-tit" style="margin-top:0">🔗 Ficha para os pais</div>
-        <p class="meta" style="margin:0">Os pais preenchem no telemóvel. Também serve para passar ao balcão uma ficha em papel.</p>
-        <div id="qrFicha"></div>
-        <div class="acoes"><a id="linkFicha" class="btn" target="_blank" rel="noopener" style="background:#ebe7df;text-align:center;text-decoration:none;color:var(--ink)">Abrir a ficha</a>
-          <button id="btnCopiarFicha" class="btn" style="background:#ebe7df">Copiar link</button></div>
-      </div>
-      <div class="card">
-        <div class="sec-tit" style="margin-top:0">📋 Fichas por usar <small id="nFichasT"></small> <button id="btnFicAtual" class="link" style="padding:0">atualizar</button></div>
-        <input id="ficQ" type="search" placeholder="Nome, email ou código" autocomplete="off" style="margin-top:0">
+        <div class="sec-tit" style="margin-top:0"><span>📋 Fichas <small id="nFichasT"></small></span><span><button id="btnFicAtual" class="link" style="padding:0">atualizar</button> <button id="btnFicQR" class="qrDiscreto" title="Mostrar / esconder o QR para os pais">▦ QR</button></span></div>
+        <div id="ficQRBox" class="hidden">
+          <p class="meta" style="margin:0">Os pais leem este QR e preenchem a ficha no telemóvel.</p>
+          <div id="qrFicha"></div>
+          <div class="acoes"><a id="linkFicha" class="btn" target="_blank" rel="noopener" style="background:#ebe7df;text-align:center;text-decoration:none;color:var(--ink)">Abrir a ficha</a>
+            <button id="btnCopiarFicha" class="btn" style="background:#ebe7df">Copiar link</button></div>
+        </div>
+        <input id="ficQ" type="search" placeholder="Nome, email ou código" autocomplete="off" style="margin-top:8px">
         <div id="ficLista"><p class="meta">—</p></div>
         <p class="meta">Cada ficha é apagada quando o atendimento em que é usada fica gravado, ou ao fim de 14 dias.</p>
       </div>
@@ -547,7 +573,25 @@ const MOTIVOS = ['Doação', 'Troca', 'Venda', 'Acerto'];
 let SESSAO = { nome: '', pw: '' };
 
 /* ---------- Ligação ao Apps Script ---------- */
-async function api(acao, dados, extra) {
+// Barra fina no topo enquanto a app fala com a Sheet; "A guardar…" ao gravar (não deixa tocar duas vezes)
+let OCUP_N = 0, OCUP_G = 0, OCUP_T = null, OCUP_TG = null;
+function ocupar(gravar) {
+  OCUP_N++; if (gravar) OCUP_G++;
+  clearTimeout(OCUP_T); OCUP_T = setTimeout(() => { if (OCUP_N) document.getElementById('barraOcup')?.classList.add('on'); }, 150);
+  if (gravar) { clearTimeout(OCUP_TG); OCUP_TG = setTimeout(() => { if (OCUP_G) document.getElementById('vGuardar')?.classList.remove('hidden'); }, 250); }
+}
+function desocupar(gravar) {
+  OCUP_N = Math.max(0, OCUP_N - 1); if (gravar) OCUP_G = Math.max(0, OCUP_G - 1);
+  if (!OCUP_N) document.getElementById('barraOcup')?.classList.remove('on');
+  if (!OCUP_G) document.getElementById('vGuardar')?.classList.add('hidden');
+}
+async function api(acao, dados, extra, op) {
+  if (op && op.silencioso) return api_(acao, dados, extra);   // verificações de fundo (ex.: pedidos novos): sem barra
+  const gravar = !!dados;
+  ocupar(gravar);
+  try { return await api_(acao, dados, extra); } finally { desocupar(gravar); }
+}
+async function api_(acao, dados, extra) {
   if (/COLAR_AQUI/.test(API_URL)) throw new Error('Falta pôr o link /exec da app nova no ficheiro (API_URL).');
   let resp;
   if (dados) {
@@ -655,7 +699,7 @@ async function irPara(tab) {
   document.body.dataset.app = app; ULTIMO_TAB[app] = tab;
   const vis = SEPARADORES[tab];
   [...new Set(Object.values(SEPARADORES))].forEach(id => document.getElementById(id).classList.toggle('hidden', id !== vis));
-  if (tab === 'sai' || tab === 'ent') { pesqA.value = ''; mudarModoAt(tab === 'sai' ? 'leva' : 'entrega'); desenharAt(); if (tab === 'ent') carregarFichas(); }
+  if (tab === 'sai' || tab === 'ent') { pesqA.value = ''; mudarModoAt(tab === 'sai' ? 'leva' : 'entrega'); desenharAt(); if (tab === 'ent') carregarFichas(); if (tab === 'sai' && AJ.ped && AJ.pedsai) { listarPedidos(); carregarPedidos(true); } }
   else if (tab === 'res') { desenharAt(); carregarHist(); }
   else if (tab === 'fic') carregarFichas();
   else if (tab === 'ped') { listarPedidos(); carregarPedidos(); }   // PEDIDOS
@@ -1400,6 +1444,7 @@ function desenharAt() {
       li.querySelector('.estSel').onchange = e => mudarEstadoLinha(tipo, k, e.target.value);
       li.querySelectorAll('.mini button').forEach(b => b.onclick = () => juntar(tipo, a, +b.dataset.d, est));
       li.querySelector('.tira').onclick = () => juntar(tipo, a, -q, est);
+      if (tipo === 'leva') botaoSaco(li, a.subcategoria, a.tamanho);
       ul.appendChild(li);
     });
   });
@@ -2517,6 +2562,7 @@ function desenharSemCarro(dir) {
     li.querySelector('.estSel').onchange = e => mudarEstadoSem(dir, k, e.target.value);
     li.querySelectorAll('.mini button').forEach(b => b.onclick = () => juntarSem(dir, sub, tam, est, +b.dataset.d));
     li.querySelector('.tira').onclick = () => juntarSem(dir, sub, tam, est, -q);
+    if (dir === 'leva') botaoSaco(li, sub, tam);
     ul.appendChild(li);
   });
 }
@@ -2561,7 +2607,7 @@ async function carregarPecas() {
   desenharPecas();
 }
 // Carrega em segundo plano (para as sugestões nas saídas), sem mostrar nada
-function carregarPecasFundo() { api('pecas').then(r => { PECAS = r.pecas || []; if (TAB_ATUAL === 'arr') desenharPecas(); }).catch(() => {}); }
+function carregarPecasFundo() { api('pecas').then(r => { PECAS = r.pecas || []; if (TAB_ATUAL === 'arr') desenharPecas(); if (TAB_ATUAL === 'sai') desenharAt(); /* botões 📦? */ }).catch(() => {}); }
 
 async function gravarPeca(p, acao, dados, msg) {
   const antes = PECAS.slice();
@@ -2700,6 +2746,22 @@ function sugestaoSaco(tipo, tam) {
   return li;
 }
 
+// Linha do carrinho (Saídas) com peças iguais em sacos por arrumar: botão 📦? abre a mesma escolha da pesquisa
+function botaoSaco(li, tipo, tam) {
+  try {
+    if (!AJ.sacos) return;
+    if (!PECAS.some(p => p.tipo === tipo && (!tam || p.tam === tam || p.sit === 'Na Espera'))) return;
+  } catch (e) { return; }
+  const b = document.createElement('button'); b.className = 'sacoQ'; b.title = 'Esta peça vem de um saco por arrumar?'; b.textContent = '📦?';
+  li.querySelector('.r1').insertBefore(b, li.querySelector('.tira'));
+  b.onclick = () => {
+    const nx = li.nextElementSibling;
+    if (nx && nx.classList.contains('sugSaco')) { nx.remove(); return; }
+    const sg = sugestaoSaco(tipo, tam);
+    if (sg) li.after(sg); else toast('Já não há peças iguais nos sacos por arrumar.');
+  };
+}
+
 /* ---------- Código do saco no fim do atendimento ---------- */
 function mostrarSaco(cod) {
   if (typeof AJ !== 'undefined' && !AJ.sacos) return;
@@ -2730,9 +2792,9 @@ function estPadraoPed(tipo) {
 }
 async function carregarPedidos(silencioso) {
   try {
-    const r = await api('pedidos');
+    const r = await api('pedidos', null, null, { silencioso: !!silencioso });
     const antes = PEDIDOS.map(p => p.codigo).join(',');
-    PEDIDOS = r.pedidos || [];
+    PEDIDOS = (r.pedidos || []).slice().reverse();   // mais recentes primeiro
     Object.keys(PED_ED).forEach(k => { if (!PEDIDOS.some(p => p.codigo === k)) delete PED_ED[k]; });
     contarPedidos();
     if (!silencioso || antes !== PEDIDOS.map(p => p.codigo).join(',')) listarPedidos();
@@ -2742,6 +2804,7 @@ function contarPedidos() {
   const n = PEDIDOS.length;
   document.getElementById('nPed').textContent = n ? '(' + n + ')' : '';
   document.getElementById('nPedT').textContent = n ? n + (n === 1 ? ' pedido' : ' pedidos') : '';
+  document.getElementById('nPedS').textContent = n ? '(' + n + ')' : '';
 }
 function edPedido(p) {
   if (!PED_ED[p.codigo]) PED_ED[p.codigo] = p.linhas.map(x => {
@@ -2758,10 +2821,16 @@ function stockPed(tipo, tam, est) {
   const outros = ESTADOS.reduce((s, e) => e.chave === est ? s : s + Math.max(0, disponivel(a, e.chave)), 0);
   return { a, n: Math.max(0, disponivel(a, est)), outros };
 }
+// Separador Pedidos (lista toda) e Saídas (os 5 mais recentes, ou o que se procurar)
 function listarPedidos() {
-  const box = document.getElementById('pedLista'); if (!box) return;
-  const k = semAcentos(document.getElementById('pedQ').value.trim());
-  const l = PEDIDOS.filter(p => !k || semAcentos(p.codigo + ' ' + p.nome).includes(k));
+  listarPedidosEm(document.getElementById('pedLista'), document.getElementById('pedQ').value, 0);
+  listarPedidosEm(document.getElementById('pedListaS'), document.getElementById('pedQS').value, 5);
+}
+function listarPedidosEm(box, q, max) {
+  if (!box) return;
+  const k = semAcentos(String(q || '').trim());
+  let l = PEDIDOS.filter(p => !k || semAcentos(p.codigo + ' ' + p.nome).includes(k));
+  if (max && !k) l = l.slice(0, max);
   box.innerHTML = '';
   if (!l.length) { box.innerHTML = '<p class="meta">' + (k ? 'Nenhum pedido encontrado.' : 'Não há pedidos.') + '</p>'; return; }
   l.forEach(p => {
@@ -2864,8 +2933,19 @@ async function abrirPedidoCodigo(cod) {
   document.getElementById('pedQ').value = ''; PED_ABERTO = cod; listarPedidos();
 }
 document.getElementById('pedQ').addEventListener('input', listarPedidos);
+document.getElementById('pedQS').addEventListener('input', listarPedidos);
 document.getElementById('btnPedAtual').onclick = () => carregarPedidos();
 // QR para os pais: escondido; o botão discreto ▦ mostra/esconde
+document.getElementById('btnFicQR').onclick = () => document.getElementById('ficQRBox').classList.toggle('hidden');
+// Listas que abrem/fecham ao tocar no título (o aparelho lembra-se)
+function dobravel(titId, corpoId, chave) {
+  const t = document.getElementById(titId), c = document.getElementById(corpoId); if (!t || !c) return;
+  const aplicar = () => { const fechado = lerGuardado(chave) === '0'; c.classList.toggle('hidden', fechado); t.classList.toggle('fechado', fechado); };
+  t.onclick = () => { guardar(chave, lerGuardado(chave) === '0' ? '1' : '0'); aplicar(); };
+  aplicar();
+}
+dobravel('zFicTit', 'zFicCorpo', 'fardasv1_zFic');
+dobravel('zPedTit', 'zPedCorpo', 'fardasv1_zPed');
 document.getElementById('btnPedQR').onclick = () => {
   const b = document.getElementById('pedQRBox'), q = document.getElementById('qrPedido');
   b.classList.toggle('hidden');
@@ -2900,10 +2980,11 @@ const FUNCS = [
   { k: 'inv',     nome: '👕 Inventário',        txt: 'Lado Inventário (Inventário, Medir, Espera, Arrumar)' },
   { k: 'fic',     nome: '📋 Fichas nas Entradas', txt: 'Procurar a ficha dos pais nas Entradas' },
   { k: 'fictab',  nome: '📋 Separador Fichas',  txt: 'QR da ficha, lista completa e ficha em papel (OCR)' },
-  { k: 'ped',     nome: '🛍 Pedidos',           txt: 'Separador Pedidos e formulário Pedido (experimental)' },
+  { k: 'ped',     nome: '🛍 Pedidos',           txt: 'Separador Pedidos e formulário Pedido' },
+  { k: 'pedsai',  nome: '🛍 Pedidos nas Saídas', txt: 'Lista dos pedidos dos pais nas Saídas' },
   { k: 'papel',   nome: '📷 Ficha em papel',    txt: 'Leitor de fichas em papel' },
   { k: 'medir',   nome: '📏 Medir',             txt: 'Botão 📏 no cabeçalho' },
-  { k: 'forms',   nome: '📝 Formulários',       txt: 'Novo crédito e entregas' },
+  { k: 'forms',   nome: '📝 Formulários',       txt: 'Novo crédito, entregas e pedidos' },
   { k: 'manuais', nome: '📚 Manuais',           txt: 'Botão da app dos manuais' },
   { k: 'stock',   nome: '📦 Stock',             txt: 'Botão 📦 (desligado = trabalha sempre sem stock)' },
   { k: 'livros',  nome: '📚 Livros',            txt: 'PNL, EMRC e Catequese nas Saídas e Entradas' },
@@ -2911,12 +2992,13 @@ const FUNCS = [
   { k: 'sacos',   nome: '📦 Sacos',             txt: 'Aviso "Escreve no saco" e sugestão "vem de um saco?"' },
   { k: 'som',     nome: '🔊 Som ao ler QR',     txt: 'Bip quando a câmara lê um código' }
 ];
-const PRESET_SIMPLES = { inv: false, fic: true, fictab: false, ped: false, papel: false, medir: false, forms: false, manuais: false, stock: false, livros: true, qr: false, sacos: false, som: true };
-const PRESET_COMPLETO = { inv: true, fic: true, fictab: true, ped: true, papel: true, medir: true, forms: true, manuais: true, stock: true, livros: true, qr: true, sacos: true, som: true };
+const PRESET_SIMPLES = { inv: false, fic: true, fictab: false, ped: false, pedsai: true, papel: false, medir: false, forms: false, manuais: false, stock: false, livros: true, qr: false, sacos: false, som: true };
+const PRESET_COMPLETO = { inv: true, fic: true, fictab: true, ped: true, pedsai: true, papel: true, medir: true, forms: true, manuais: true, stock: true, livros: true, qr: true, sacos: true, som: true };
 let AJ = (() => { try { const s = JSON.parse(lerGuardado('fardasv1_ajustes') || 'null');
   // escolhas guardadas antes destas opções: o separador Fichas fica como estava; Pedidos começa desligado
   if (s && !('fictab' in s)) s.fictab = s.fic !== false;
   if (s && !('ped' in s)) s.ped = false;
+  if (s && !('pedsai' in s)) s.pedsai = true;
   return s ? Object.assign({}, PRESET_COMPLETO, s) : Object.assign({}, PRESET_SIMPLES); } catch (e) { return Object.assign({}, PRESET_SIMPLES); } })();
 const iguais = (a, b) => FUNCS.every(f => !!a[f.k] === !!b[f.k]);
 
@@ -2995,5 +3077,6 @@ function toast(t) { const m = document.getElementById('msg'); m.textContent = t;
 })();
 </script>
 <!-- /MOLDURA -->
+<div id="barraOcup"></div><div id="vGuardar" class="hidden"><div><span class="giro"></span>A guardar…</div></div>
 </body>
 </html>

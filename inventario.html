@@ -257,8 +257,10 @@
   body.aj-sem-modop #btnModoP { display:none !important; }
   /* 🔍 DEFEITO? */
   .defBtn { font-size:.78rem; border:1px solid #b9c9e2; background:#e6edf7; color:#2a4a7a; border-radius:999px; padding:2px 9px; margin-left:6px; cursor:pointer; text-transform:none; letter-spacing:0; font-weight:600; }
-  .defFundo { position:fixed; inset:0; z-index:9000; background:rgba(0,0,0,.35); display:flex; align-items:flex-end; justify-content:center; }
-  .defCaixa { background:#fff; width:100%; max-width:560px; max-height:88vh; border-radius:16px 16px 0 0; padding:12px 14px 16px; display:flex; flex-direction:column; gap:8px; }
+  .defFundo { position:fixed; left:0; right:0; top:0; height:100vh; z-index:9000; background:rgba(0,0,0,.35); display:flex; align-items:flex-start; justify-content:center; }
+  .defCaixa { background:#fff; width:100%; max-width:560px; max-height:100%; border-radius:0 0 16px 16px; padding:10px 14px 12px; display:flex; flex-direction:column; gap:8px; box-sizing:border-box; }
+  .defCaixa .defQ { margin:0; }
+  .defTopoRes { display:flex; align-items:center; gap:8px; } .defTopoRes .defRes { flex:1; } .defTopoRes .defOk { width:auto; padding:8px 14px; white-space:nowrap; }
   .defTopo { display:flex; justify-content:space-between; align-items:center; gap:8px; }
   .defLista { overflow:auto; flex:1; display:flex; flex-direction:column; gap:6px; min-height:120px; }
   .defIt { display:flex; justify-content:space-between; align-items:center; gap:8px; text-align:left; border:1px solid var(--line); background:#fff; border-radius:10px; padding:8px 10px; font:inherit; font-size:.92rem; cursor:pointer; color:var(--ink); }
@@ -3138,11 +3140,16 @@ function abrirDefeitos(tipo, aoEscolher) {
   const fundo = document.createElement('div'); fundo.className = 'defFundo';
   fundo.innerHTML = '<div class="defCaixa"><div class="defTopo"><b>🔍 Defeito? · ' + esc(tipo) + '</b><button class="mini2 defX">✕</button></div>' +
     '<input type="search" class="defQ" placeholder="Procurar (ex.: borbotos, mancha, fecho)" autocomplete="off">' +
-    '<div class="defLista"></div><div class="defRes"></div>' +
-    '<div class="defAcoes"><button class="btn btn-acc defOk" disabled>Escolhe o defeito</button></div>' +
+    '<div class="defTopoRes"><div class="defRes meta">Toca no(s) defeito(s).</div><button class="btn btn-acc defOk" disabled>Escolhe</button></div>' +
+    '<div class="defLista"></div>' +
     '<button class="link defImp">imprimir cartão de bolso</button></div>';
   document.body.appendChild(fundo);
-  const fechar = () => fundo.remove();
+  // A janela abre em cima e encolhe para a parte visível do ecrã (acima do teclado do telemóvel)
+  const vv = window.visualViewport;
+  const ajustar = () => { fundo.style.height = (vv ? vv.height : window.innerHeight) + 'px'; fundo.style.top = (vv ? vv.offsetTop : 0) + 'px'; };
+  ajustar();
+  if (vv) { vv.addEventListener('resize', ajustar); vv.addEventListener('scroll', ajustar); }
+  const fechar = () => { if (vv) { vv.removeEventListener('resize', ajustar); vv.removeEventListener('scroll', ajustar); } fundo.remove(); };
   fundo.querySelector('.defX').onclick = fechar;
   fundo.onclick = e => { if (e.target === fundo) fechar(); };
   const q = fundo.querySelector('.defQ'), box = fundo.querySelector('.defLista'), res = fundo.querySelector('.defRes'), ok = fundo.querySelector('.defOk');
@@ -3161,10 +3168,10 @@ function abrirDefeitos(tipo, aoEscolher) {
     });
     const k = pior(), rec = lista.filter(d => marcados.has(d.texto) && d.recusa);
     const permitido = !k || estadosDe(tipoInfo(tipo)).some(e => e.chave === k);
-    res.innerHTML = !marcados.size ? '' : (rec.length ? '⚠ <b>Não se aceita nesta peça:</b> ' + rec.map(d => esc(d.texto)).join(', ') + '<br>' : '') +
+    res.innerHTML = !marcados.size ? 'Toca no(s) defeito(s).' : (rec.length ? '⚠ <b>Não se aceita nesta peça:</b> ' + rec.map(d => esc(d.texto)).join(', ') + '<br>' : '') +
       (k ? 'Estado: <b>' + esc(nomeEst(k)) + '</b>' + (permitido ? '' : '<br>⚠ Este estado não está ligado para esta peça (folha Tipos).') : '');
     ok.disabled = !k || !permitido;
-    ok.textContent = k ? 'Usar ' + curtoEst(ESTADOS.find(x => x.chave === k) || { nome: k }) : 'Escolhe o defeito';
+    ok.textContent = k ? 'Usar ' + curtoEst(ESTADOS.find(x => x.chave === k) || { nome: k }) : 'Escolhe';
   };
   q.oninput = desenhar;
   ok.onclick = () => { const k = pior(); fechar(); if (k) aoEscolher(k); };

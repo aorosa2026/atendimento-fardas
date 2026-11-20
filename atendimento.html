@@ -1619,18 +1619,73 @@ async function carregarEspera() {
 document.getElementById('btnEspAtual').onclick = carregarEspera;
 
 // Tipo da folha Medidas que corresponde a este tipo de peça (ex.: "Polo" para "Polo verão")
-function tipoMedidaPara(sub) {
-  const s = semAcentos(sub);
-  return unicos(MEDIDAS.map(m => m.tipo)).find(t => { const x = semAcentos(t); return x === s || s.includes(x) || x.includes(s); }) || '';
+/* ---------- MEDIDAS: nomes da folha Medidas ↔ peças do inventário ----------
+   Na folha Medidas uma linha pode servir várias peças ("T-shirts, Pólos, Pullovers, Sweats de ginástica").
+   Compara palavra a palavra, sem acentos, sem plurais, sem hífenes e sem "de/da/do…":
+   "Sweats Ginástica" = "Sweats de ginástica"; "Tshirts" = "T-shirts"; "Pólos MCurta" usa "Pólos".  */
+const PAL_IGNORAR = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 's', 'c', 'com']);
+function palavrasNome(t) {
+  return semAcentos(t).replace(/-/g, '').replace(/[^a-z0-9]+/g, ' ').trim().split(' ')
+    .filter(w => w && !PAL_IGNORAR.has(w)).map(w => w.length > 3 ? w.replace(/(es|s)$/, '') : w);
 }
+// Todas as tabelas que servem esta peça (ex.: "Bibes" → Bibes menino e Bibes menina)
+function tiposMedidaPara(sub) {
+  const A = palavrasNome(sub); if (!A.length) return [];
+  let melhor = 0, res = [];
+  unicos(MEDIDAS.map(m => m.tipo)).forEach(t => {
+    const B = palavrasNome(t); if (!B.length) return;
+    const aEmB = A.every(w => B.includes(w)), bEmA = B.every(w => A.includes(w));
+    const sc = aEmB && bEmA ? 100 : bEmA ? 50 + B.length : aEmB ? 20 - (B.length - A.length) : 0;
+    if (!sc) return;
+    if (sc > melhor) { melhor = sc; res = [t]; } else if (sc === melhor) res.push(t);
+  });
+  return res;
+}
+function tipoMedidaPara(sub) { return tiposMedidaPara(sub)[0] || ''; }
+// Marcas de uma tabela: '' = Geral (linhas sem marca), primeiro
+function marcasMedida(tMed) {
+  const ls = MEDIDAS.filter(m => m.tipo === tMed);
+  return (ls.some(m => !m.marca) ? [''] : []).concat(unicos(ls.map(m => m.marca)));
+}
+/* Medida → tamanho. "Até" inclui; o "De" do tamanho seguinte, se for igual, não inclui (35–40 e 40–45: 40 → o de baixo).
+   Fora da tabela ou entre dois tamanhos: o mais próximo e o vizinho, cada um com o seu intervalo.
+   Tamanhos sem medidas (De/Até em branco na folha) que ficam pelo meio: aviso. */
+function analisarMedida(tMed, marca, x) {
+  const todas = MEDIDAS.filter(m => m.tipo === tMed && (m.marca || '') === (marca || ''));
+  if (!todas.length || isNaN(x)) return null;
+  const ord = (a, b) => (a.i || 0) - (b.i || 0);
+  const sabe = todas.filter(m => m.de != null && m.ate != null).sort((a, b) => a.de - b.de || ord(a, b));
+  const semMed = todas.filter(m => m.de == null || m.ate == null).sort(ord);
+  const entre = (a, b) => semMed.filter(m => (!a || (m.i || 0) > (a.i || 0)) && (!b || (m.i || 0) < (b.i || 0))).map(m => m.tamanho);
+  if (!sabe.length) return { vazia: true, semMed: semMed.map(m => m.tamanho) };
+  const dentro = sabe.filter(m => x >= m.de && x <= m.ate);
+  if (dentro.length) return { certo: true, linha: dentro.find(m => x > m.de) || dentro[0], perto: dentro.find(m => x > m.de) || dentro[0] };
+  const prim = sabe[0], ult = sabe[sabe.length - 1];
+  if (x < prim.de) return { fora: 'abaixo', perto: prim, outro: sabe[1] || null, semMed: entre(null, prim) };
+  if (x > ult.ate) return { fora: 'acima', perto: ult, outro: sabe[sabe.length - 2] || null, semMed: entre(ult, null) };
+  const b = sabe.find(m => m.de > x), a = sabe.filter(m => m.ate < x).pop();
+  return { fora: 'entre', perto: (x - a.ate) <= (b.de - x) ? a : b, a, b, semMed: entre(a, b) };
+}
+function intervaloTxt(m) { const f = n => String(n).replace('.', ','); return m.de === m.ate ? f(m.de) + ' cm' : f(m.de) + '–' + f(m.ate) + ' cm'; }
+function tamIntervalo(m) { return '<b>' + esc(m.tamanho) + '</b> (' + intervaloTxt(m) + ')'; }
+function textoAnalise(an) {
+  if (!an) return 'Sem medidas para esta escolha.';
+  const sm = an.semMed && an.semMed.length ? '<br>⚠ ' + (an.semMed.length === 1 ? 'O ' + esc(an.semMed[0]) + ' ainda não tem medidas' :
+    'Os tamanhos ' + an.semMed.map(esc).join(', ') + ' ainda não têm medidas') + ': confirma à mão.' : '';
+  if (an.vazia) return 'Esta tabela ainda não tem medidas: escolhe o tamanho à mão.';
+  if (an.certo) return '📏 Tam. ' + tamIntervalo(an.linha) + ' → arrumar no <b>' + esc(an.linha.tamanho) + '</b>' + (an.linha.obs ? '<br>⚠ ' + esc(an.linha.obs) : '');
+  if (an.fora === 'entre') return '⚠ Fica entre dois tamanhos: ' + tamIntervalo(an.a) + ' e ' + tamIntervalo(an.b) + '. O mais próximo é o <b>' + esc(an.perto.tamanho) + '</b>.' + sm;
+  return '⚠ ' + (an.fora === 'abaixo' ? 'Mais pequeno' : 'Maior') + ' do que a tabela. O mais próximo: ' + tamIntervalo(an.perto) +
+    (an.outro ? ' · ' + (an.fora === 'abaixo' ? 'acima' : 'abaixo') + ': ' + tamIntervalo(an.outro) : '') + '.' + sm;
+}
+function tamSugerido(an) { return an && (an.certo ? an.linha.tamanho : an.perto ? an.perto.tamanho : ''); }
+// (antiga, ainda usada por outras partes)
 function tamanhoPorMedida(tipo, marca, x) {
-  const ls = MEDIDAS.filter(m => m.tipo === tipo && (m.marca || '') === (marca || '')).sort((a, b) => a.de - b.de);
-  if (!ls.length) return null;
-  const certa = ls.find(m => x >= m.de && x <= m.ate);
-  if (certa) return { tam: certa.tamanho, obs: certa.obs, fora: false };
-  const dist = m => x < m.de ? m.de - x : x - m.ate;
-  return { tam: ls.slice().sort((a, b) => dist(a) - dist(b))[0].tamanho, obs: '', fora: true };
+  const an = analisarMedida(tipo, marca, x);
+  if (!an || an.vazia) return null;
+  return { tam: tamSugerido(an), obs: an.certo ? an.linha.obs : '', fora: !an.certo };
 }
+const rotMarca = m => m || 'Geral';
 
 function desenharEspera() {
   const ul = document.getElementById('listaEsp');
@@ -1652,15 +1707,16 @@ function painelEspera(e) {
   const box = document.createElement('div');
   box.className = 'painel';
   const tamanhos = unicos(ARTIGOS.filter(a => a.subcategoria === e.tipo).map(a => a.tamanho)).sort(ordTam);
-  const tMed = tipoMedidaPara(e.tipo);
-  const marcas = tMed ? unicos(MEDIDAS.filter(m => m.tipo === tMed).map(m => m.marca)) : [];
+  const tMeds = tiposMedidaPara(e.tipo);
+  let tMed = tMeds[0] || '';
+  let marcas = tMed ? marcasMedida(tMed) : [];
   let marca = marcas.length ? marcas[0] : '', escolhido = '';
 
   box.innerHTML =
-    (tMed ? '<div class="filtro-tit">Medir (' + esc(tMed) + ')</div>' +
-      (marcas.length ? '<div class="chips mMarca"></div>' : '') +
-      '<input class="mCm" type="text" inputmode="decimal" placeholder="comprimento em cm" style="margin-top:6px">' +
-      '<div class="mRes meta" style="margin-top:4px"></div>' : '') +
+    (tMed ? '<div class="filtro-tit">Medir</div><div class="chips mTab"></div><div class="chips mMarca" style="margin-top:4px"></div>' +
+      '<input class="mCm" type="text" inputmode="decimal" placeholder="📏 medida em cm" style="margin-top:6px">' +
+      '<div class="mRes meta" style="margin-top:4px"></div>'
+      : '<div class="meta" style="margin-top:6px">Sem medidas para «' + esc(e.tipo) + '» na folha Medidas: escolhe o tamanho abaixo.</div>') +
     '<div class="filtro-tit">Estado</div><div class="chips mEst"></div>' +
     '<div class="filtro-tit">Tamanho</div><div class="chips mTam"></div>' +
     '<button class="btn btn-acc mOk" style="margin-top:10px" disabled>Escolhe o tamanho</button>' +
@@ -1695,12 +1751,16 @@ function painelEspera(e) {
     zt.appendChild(b);
   });
   if (tMed) {
-    const zm = box.querySelector('.mMarca');
+    const zm = box.querySelector('.mMarca'), ztb = box.querySelector('.mTab');
     const desenharMarcas = () => {
-      if (!zm) return;
-      zm.innerHTML = '';
-      marcas.forEach(m => {
-        const b = document.createElement('button'); b.className = 'chip' + (m === marca ? ' sel' : ''); b.textContent = m || 'Outra / não sei';
+      ztb.innerHTML = ''; zm.innerHTML = '';
+      if (tMeds.length > 1) tMeds.forEach(t => {        // ex.: Bibes → menino / menina
+        const b = document.createElement('button'); b.className = 'chip' + (t === tMed ? ' sel' : ''); b.textContent = t;
+        b.onclick = () => { tMed = t; marcas = marcasMedida(t); marca = marcas[0] || ''; desenharMarcas(); medir(); };
+        ztb.appendChild(b);
+      });
+      if (marcas.length > 1) marcas.forEach(m => {
+        const b = document.createElement('button'); b.className = 'chip' + (m === marca ? ' sel' : ''); b.textContent = rotMarca(m);
         b.onclick = () => { marca = m; desenharMarcas(); medir(); };
         zm.appendChild(b);
       });
@@ -1709,11 +1769,11 @@ function painelEspera(e) {
       const x = parseFloat(box.querySelector('.mCm').value.replace(',', '.'));
       const res = box.querySelector('.mRes');
       if (isNaN(x)) { res.textContent = ''; return; }
-      const r = tamanhoPorMedida(tMed, marca, x);
-      if (!r) { res.textContent = 'Sem medidas para esta escolha.'; return; }
-      res.innerHTML = (r.fora ? '⚠ Fora da tabela — mais próximo: ' : '📏 Tamanho ') + '<b>' + esc(r.tam) + '</b>' + (r.obs ? ' · ⚠ ' + esc(r.obs) : '');
-      if (tamanhos.includes(r.tam)) { escolhido = r.tam; pintar(); }
-      else res.innerHTML += ' — não há linha deste tamanho no Inventario';
+      const an = analisarMedida(tMed, marca, x), sug = tamSugerido(an);
+      res.innerHTML = textoAnalise(an);
+      if (!sug) return;
+      if (tamanhos.includes(sug)) { escolhido = sug; pintar(); }
+      else res.innerHTML += '<br>— não há linha do tamanho ' + esc(sug) + ' no Inventario';
     };
     desenharMarcas();
     box.querySelector('.mCm').addEventListener('input', medir);
@@ -1753,13 +1813,13 @@ function painelEspera(e) {
     ok.disabled = true; ok.textContent = 'A gravar…';
     try {
       if (SEM_STOCK) {
-        await api('arrumar', { idE: e.idE, tamanho: escolhido, estado: estE });
+        await api('arrumar', { idE: e.idE, tamanho: escolhido, estado: estE, cm: (box.querySelector('.mCm') || {}).value || '' });
         ESPERA = ESPERA.filter(x => x.idE !== e.idE); espAberta = null;
         document.getElementById('nEsp').textContent = ESPERA.length ? '(' + ESPERA.length + ')' : '';
         toast('✔ Guardar em: ' + e.tipo + ' · tam. ' + escolhido + ' (' + nomeEst(estE) + ')');
         desenharEspera(); return;
       }
-      const r = await api('inventariar', { idE: e.idE, tamanho: escolhido, estado: estE });
+      const r = await api('inventariar', { idE: e.idE, tamanho: escolhido, estado: estE, cm: (box.querySelector('.mCm') || {}).value || '' });
       atualizarStocks(r.stocks);
       ESPERA = ESPERA.filter(x => x.idE !== e.idE); espAberta = null;
       document.getElementById('nEsp').textContent = ESPERA.length ? '(' + ESPERA.length + ')' : '';
@@ -1805,7 +1865,7 @@ function desenharMedir() {
   document.getElementById('blocoMarca').classList.toggle('hidden', !usaMarca);
   if (usaMarca) {
     const ops = marcas.map(m => [m, m]).concat(temGeral ? [['', 'Outra / não sei']] : []);
-    if (med.marca === null || !ops.some(o => o[0] === med.marca)) med.marca = ops[0][0];
+    if (med.marca === null || !ops.some(o => o[0] === med.marca)) med.marca = temGeral ? '' : ops[0][0];   // Geral por defeito
     chips2('medMarca', ops, med.marca, v => { med.marca = v; desenharMedir(); });
   } else med.marca = '';
   document.getElementById('titCm').textContent = (usaMarca ? '3' : '2') + '. Comprimento (cm)';
@@ -1827,21 +1887,17 @@ function calcularMedida() {
   if (!txt || isNaN(x)) return;
   const ls = linhasMed();
   if (!ls.length) { res.innerHTML = '<div class="resMed fora"><div class="t">Não há medidas para esta escolha na folha Medidas.</div></div>'; return; }
-  const cm = n => String(n).replace('.', ',') + ' cm';
-  const certa = ls.find(m => x >= m.de && x <= m.ate);
-  let tam;
-  if (certa) {
-    tam = certa.tamanho;
+  const an = analisarMedida(med.tipo, med.marca, x);
+  if (!an || an.vazia) { res.innerHTML = '<div class="resMed fora"><div class="t">Esta tabela ainda não tem medidas.</div></div>'; return; }
+  const tam = tamSugerido(an);
+  if (an.certo) {
     res.innerHTML = '<div class="resMed"><div class="t">Guardar no tamanho</div><div class="n">' + esc(tam) + '</div>' +
-      '<small>' + esc(med.tipo) + (med.marca ? ' · ' + esc(med.marca) : '') + ' · de ' + cm(certa.de) + ' a ' + cm(certa.ate) + '</small>' +
-      (certa.obs ? '<div class="obsMed">⚠ ' + esc(certa.obs) + '</div>' : '') + '</div>';
+      '<small>' + esc(med.tipo) + (med.marca ? ' · ' + esc(med.marca) : '') + ' · ' + intervaloTxt(an.linha) + '</small>' +
+      (an.linha.obs ? '<div class="obsMed">⚠ ' + esc(an.linha.obs) + '</div>' : '') + '</div>';
   } else {
-    // Fora da tabela ou num intervalo vazio: indica o mais próximo
-    const dist = m => x < m.de ? m.de - x : x - m.ate;
-    const perto = ls.slice().sort((a, b) => dist(a) - dist(b))[0];
-    tam = perto.tamanho;
-    res.innerHTML = '<div class="resMed fora"><div class="t">' + (x < ls[0].de ? 'Mais pequeno do que a tabela' : x > ls[ls.length - 1].ate ? 'Maior do que a tabela' : 'Fica entre dois tamanhos') +
-      ' — o mais próximo é</div><div class="n">' + esc(tam) + '</div><small>' + esc(tam) + ': de ' + cm(perto.de) + ' a ' + cm(perto.ate) + '. Confirma a medida ou acerta a folha Medidas.</small></div>';
+    // Fora da tabela ou entre dois tamanhos: o mais próximo e o vizinho, com os intervalos
+    res.innerHTML = '<div class="resMed fora"><div class="t">' + (an.fora === 'abaixo' ? 'Mais pequeno do que a tabela' : an.fora === 'acima' ? 'Maior do que a tabela' : 'Fica entre dois tamanhos') +
+      ' — o mais próximo é</div><div class="n">' + esc(tam) + '</div><small>' + textoAnalise(an).replace(/^⚠ /, '') + '<br>Confirma a medida ou acerta a folha Medidas.</small></div>';
   }
   listarPecasMed(tam);
 }
@@ -1880,10 +1936,10 @@ function gruposMedidas() {
     if (m.nota && !g[k].nota) g[k].nota = m.nota;
     g[k].linhas[m.tamanho + '|' + m.de + '|' + m.ate] = m;
   });
-  return ordem.map(k => Object.assign(g[k], { linhas: Object.values(g[k].linhas).sort((a, b) => a.de - b.de) }));
+  return ordem.map(k => Object.assign(g[k], { linhas: Object.values(g[k].linhas).sort((a, b) => (a.i || 0) - (b.i || 0) || (a.de || 0) - (b.de || 0)) }));
 }
 function htmlTabelas(destacar) {
-  const cm = n => String(n).replace('.', ',');
+  const cm = n => n == null ? '—' : String(n).replace('.', ',');
   const gs = gruposMedidas();
   if (!gs.length) return '<p>Ainda não há medidas na folha Medidas.</p>';
   return gs.map(g => {
@@ -1891,7 +1947,7 @@ function htmlTabelas(destacar) {
     return '<div class="grpMed' + (atual ? ' atual' : '') + '"><b>' + esc(g.tipos) + '</b><span>' + (g.marca ? 'Marca: ' + esc(g.marca) : 'Todas as marcas') + '</span></div>' +
       (g.nota ? '<div style="font-size:.8rem;color:#666;margin:2px 0 4px">📐 ' + esc(g.nota) + '</div>' : '') +
       '<table class="tabMedidas"><tr><th>Tamanho</th><th>De (cm)</th><th>Até (cm)</th><th>Observações</th></tr>' +
-      g.linhas.map(m => '<tr><td class="t">' + esc(m.tamanho) + '</td><td class="n">' + cm(m.de) + '</td><td class="n">' + cm(m.ate) + '</td><td>' + esc(m.obs || '') + '</td></tr>').join('') +
+      g.linhas.map(m => '<tr><td class="t">' + esc(m.tamanho) + '</td><td class="n">' + cm(m.de) + '</td><td class="n">' + cm(m.ate) + '</td><td>' + esc(m.obs || (m.de == null ? 'medidas por definir' : '')) + '</td></tr>').join('') +
       '</table>';
   }).join('');
 }
@@ -1951,7 +2007,7 @@ function tabelaImp(g, tituloBloco) {
   // por baixo da barra só o que distingue a tabela: menino/menina e marca (o nome da peça já está na barra)
   const gen = generoDe(g.tipos), igual = semAcentos(semGenero(g.tipos)) === semAcentos(tituloBloco || '');
   const partes = [igual ? (gen === 'M' ? 'Menino' : gen === 'F' ? 'Menina' : '') : g.tipos, g.marca].filter(Boolean);
-  const cm = n => String(n).replace('.', ',');
+  const cm = n => n == null ? '—' : String(n).replace('.', ',');
   const temObs = g.linhas.some(m => m.obs);
   return '<div class="med">' + (partes.length ? '<div class="tit"><b>' + esc(partes[0]) + '</b>' + (partes[1] ? ' <span>· ' + esc(partes[1]) + '</span>' : '') + '</div>' : '') +
     (g.nota ? '<div class="nota">📐 ' + esc(g.nota) + '</div>' : '') +
@@ -2680,7 +2736,7 @@ function cartaoPeca(p, primeira) {
     const t = tipoInfo(p.tipo), ests = t ? estadosDe(t) : ESTADOS, tMed = tipoMedidaPara(p.tipo);
     h += '<div class="cpEd"><div class="filtro-tit">Tamanho</div><div class="chips">' +
       tams.map(x => '<button class="chip' + (x === tam ? ' sel' : '') + '" data-tam="' + esc(x) + '">' + esc(x) + '</button>').join('') + '</div>' +
-      medidaCartao(p, E, tMed) +
+      medidaCartao(p, E) +
       '<div class="filtro-tit">Estado</div><div class="chips">' +
       ests.map(e => '<button class="chip' + (e.chave === est ? ' sel' : '') + '" data-est="' + esc(e.chave) + '" title="' + esc(e.nome) + '">' + esc(curtoEst(e)) + '</button>').join('') + '</div></div>';
   }
@@ -2691,20 +2747,26 @@ function cartaoPeca(p, primeira) {
 }
 
 // Arrumar: medida em cm → sugere o tamanho enquanto se escreve (e escolhe a marca, se houver mais do que uma)
-function medidaCartao(p, E, tMed) {
+function tabelaDoCartao(p, E) {
+  const ts = tiposMedidaPara(p.tipo);
+  if (!ts.includes(E.tab)) E.tab = ts[0] || '';
+  return { ts, tMed: E.tab };
+}
+function medidaCartao(p, E) {
+  const { ts, tMed } = tabelaDoCartao(p, E);
   if (!tMed) return '<div class="cpMed meta" style="margin-top:6px">Sem medidas para «' + esc(p.tipo) + '» na folha Medidas: escolhe o tamanho acima.</div>';
-  const marcas = unicos(MEDIDAS.filter(m => m.tipo === tMed).map(m => m.marca || ''));
-  if (!marcas.includes(E.marca)) E.marca = marcas[0];
-  return (marcas.length > 1 ? '<div class="filtro-tit">Marca (para a medida)</div><div class="chips">' +
-      marcas.map(m => '<button class="chip' + (m === E.marca ? ' sel' : '') + '" data-marca="' + esc(m) + '">' + esc(m || 'sem marca') + '</button>').join('') + '</div>' : '') +
+  const marcas = marcasMedida(tMed);
+  if (!marcas.includes(E.marca)) E.marca = marcas[0] || '';
+  return (ts.length > 1 ? '<div class="filtro-tit">Tabela</div><div class="chips">' +
+      ts.map(t => '<button class="chip' + (t === tMed ? ' sel' : '') + '" data-tmed="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div>' : '') +
+    (marcas.length > 1 ? '<div class="filtro-tit">Marca (para a medida)</div><div class="chips">' +
+      marcas.map(m => '<button class="chip' + (m === E.marca ? ' sel' : '') + '" data-marca="' + esc(m) + '">' + esc(rotMarca(m)) + '</button>').join('') + '</div>' : '') +
     '<input class="cpCm" type="text" inputmode="decimal" placeholder="📏 medida em cm" value="' + esc(E.cm || '') + '" style="margin-top:6px"><div class="cpMed meta">' + textoMedida(tMed, E) + '</div>';
 }
 function textoMedida(tMed, E) {
   const x = parseFloat(String(E.cm || '').replace(',', '.'));
   if (isNaN(x)) return '';
-  const r = tamanhoPorMedida(tMed, E.marca, x);
-  if (!r) return 'Sem medidas para esta marca.';
-  return (r.fora ? '⚠ Fora da tabela — o mais próximo: ' : '📏 ') + '<b>tam. ' + esc(r.tam) + '</b> → arrumar no ' + esc(r.tam) + (r.obs ? ' · ' + esc(r.obs) : '');
+  return textoAnalise(analisarMedida(tMed, E.marca, x));
 }
 
 function ligarCartoes() {
@@ -2715,6 +2777,7 @@ function ligarCartoes() {
     c.querySelectorAll('[data-tam]').forEach(b => b.onclick = () => { E.tam = b.dataset.tam; desenharPecas(); });
     c.querySelectorAll('[data-est]').forEach(b => b.onclick = () => { E.est = b.dataset.est; desenharPecas(); });
     c.querySelectorAll('[data-marca]').forEach(b => b.onclick = () => { E.marca = b.dataset.marca; aplicarMedida(c, p, E); desenharPecas(); });
+    c.querySelectorAll('[data-tmed]').forEach(b => b.onclick = () => { E.tab = b.dataset.tmed; E.marca = null; tabelaDoCartao(p, E); aplicarMedida(c, p, E); desenharPecas(); });
     const cm = c.querySelector('.cpCm');
     // Enquanto se escreve: mostra a sugestão e já marca o tamanho (sem redesenhar, para não fechar o teclado)
     if (cm) cm.addEventListener('input', () => { E.cm = cm.value; aplicarMedida(c, p, E); });
@@ -2725,9 +2788,10 @@ function ligarCartoes() {
       const tam = ed ? E.tam : p.tam, est = ed ? E.est : p.estado;
       if (semTam) {
         if (!tam) { toast('Escolhe ou mede o tamanho.'); return; }
-        gravarPeca(p, 'arrumar', { idE: p.espera, tamanho: tam, estado: est }, '✔ ' + p.tipo + ' tam. ' + tam + ' · ' + bolaEst(est));
+        gravarPeca(p, 'arrumar', { idE: p.espera, tamanho: tam, estado: est, cm: E.cm || '' }, '✔ ' + p.tipo + ' tam. ' + tam + ' · ' + bolaEst(est));
       } else {
         const d = { ids: [p.id], situacao: 'Arrumada' };
+        if (ed && E.cm) d.cm = E.cm;   // a medida escrita fica na folha Peças (para completar a folha Medidas)
         if (tam && tam !== p.tam) d.tamanho = tam;
         if (est && est !== p.estado) d.estado = est;
         gravarPeca(p, 'pecas', d, '✔ ' + p.tipo + (tam ? ' tam. ' + tam : '') + ' · ' + bolaEst(est));
@@ -2741,13 +2805,15 @@ function ligarCartoes() {
 }
 
 function aplicarMedida(c, p, E) {
-  const tMed = tipoMedidaPara(p.tipo), x = parseFloat(String(E.cm || '').replace(',', '.'));
+  const { tMed } = tabelaDoCartao(p, E);
+  if (E.marca == null) E.marca = marcasMedida(tMed)[0] || '';
+  const x = parseFloat(String(E.cm || '').replace(',', '.'));
   const caixa = c.querySelector('.cpMed'); if (caixa) caixa.innerHTML = textoMedida(tMed, E);
-  const r = isNaN(x) ? null : tamanhoPorMedida(tMed, E.marca, x);
-  if (!r) return;
-  E.tam = r.tam;
-  c.querySelectorAll('[data-tam]').forEach(b => b.classList.toggle('sel', b.dataset.tam === r.tam));
-  const t = c.querySelector('.cpTam'); if (t) t.textContent = 'tam. ' + r.tam;
+  const sug = isNaN(x) ? '' : tamSugerido(analisarMedida(tMed, E.marca, x));
+  if (!sug) return;
+  E.tam = sug;
+  c.querySelectorAll('[data-tam]').forEach(b => b.classList.toggle('sel', b.dataset.tam === sug));
+  const t = c.querySelector('.cpTam'); if (t) t.textContent = 'tam. ' + sug;
   const ba = c.querySelector('.btnArr'); if (ba) ba.disabled = false;
 }
 

@@ -2680,7 +2680,7 @@ function cartaoPeca(p, primeira) {
     const t = tipoInfo(p.tipo), ests = t ? estadosDe(t) : ESTADOS, tMed = tipoMedidaPara(p.tipo);
     h += '<div class="cpEd"><div class="filtro-tit">Tamanho</div><div class="chips">' +
       tams.map(x => '<button class="chip' + (x === tam ? ' sel' : '') + '" data-tam="' + esc(x) + '">' + esc(x) + '</button>').join('') + '</div>' +
-      (tMed ? '<input class="cpCm" type="text" inputmode="decimal" placeholder="📏 comprimento em cm" style="margin-top:6px"><div class="cpMed meta"></div>' : '') +
+      medidaCartao(p, E, tMed) +
       '<div class="filtro-tit">Estado</div><div class="chips">' +
       ests.map(e => '<button class="chip' + (e.chave === est ? ' sel' : '') + '" data-est="' + esc(e.chave) + '" title="' + esc(e.nome) + '">' + esc(curtoEst(e)) + '</button>').join('') + '</div></div>';
   }
@@ -2690,6 +2690,23 @@ function cartaoPeca(p, primeira) {
   return h;
 }
 
+// Arrumar: medida em cm → sugere o tamanho enquanto se escreve (e escolhe a marca, se houver mais do que uma)
+function medidaCartao(p, E, tMed) {
+  if (!tMed) return '<div class="cpMed meta" style="margin-top:6px">Sem medidas para «' + esc(p.tipo) + '» na folha Medidas: escolhe o tamanho acima.</div>';
+  const marcas = unicos(MEDIDAS.filter(m => m.tipo === tMed).map(m => m.marca || ''));
+  if (!marcas.includes(E.marca)) E.marca = marcas[0];
+  return (marcas.length > 1 ? '<div class="filtro-tit">Marca (para a medida)</div><div class="chips">' +
+      marcas.map(m => '<button class="chip' + (m === E.marca ? ' sel' : '') + '" data-marca="' + esc(m) + '">' + esc(m || 'sem marca') + '</button>').join('') + '</div>' : '') +
+    '<input class="cpCm" type="text" inputmode="decimal" placeholder="📏 medida em cm" value="' + esc(E.cm || '') + '" style="margin-top:6px"><div class="cpMed meta">' + textoMedida(tMed, E) + '</div>';
+}
+function textoMedida(tMed, E) {
+  const x = parseFloat(String(E.cm || '').replace(',', '.'));
+  if (isNaN(x)) return '';
+  const r = tamanhoPorMedida(tMed, E.marca, x);
+  if (!r) return 'Sem medidas para esta marca.';
+  return (r.fora ? '⚠ Fora da tabela — o mais próximo: ' : '📏 ') + '<b>tam. ' + esc(r.tam) + '</b> → arrumar no ' + esc(r.tam) + (r.obs ? ' · ' + esc(r.obs) : '');
+}
+
 function ligarCartoes() {
   document.querySelectorAll('.cartaoP').forEach(c => {
     const p = PECAS.find(x => x.id === c.dataset.id); if (!p) return;
@@ -2697,16 +2714,10 @@ function ligarCartoes() {
     const E = edDe(p);
     c.querySelectorAll('[data-tam]').forEach(b => b.onclick = () => { E.tam = b.dataset.tam; desenharPecas(); });
     c.querySelectorAll('[data-est]').forEach(b => b.onclick = () => { E.est = b.dataset.est; desenharPecas(); });
+    c.querySelectorAll('[data-marca]').forEach(b => b.onclick = () => { E.marca = b.dataset.marca; aplicarMedida(c, p, E); desenharPecas(); });
     const cm = c.querySelector('.cpCm');
-    if (cm) cm.addEventListener('change', () => {
-      const x = parseFloat(cm.value.replace(',', '.')); if (isNaN(x)) return;
-      const tMed = tipoMedidaPara(p.tipo), marcas = unicos(MEDIDAS.filter(m => m.tipo === tMed).map(m => m.marca));
-      const r = tamanhoPorMedida(tMed, marcas[0] || '', x);
-      if (!r) { c.querySelector('.cpMed').textContent = 'Sem medidas para esta peça.'; return; }
-      E.tam = r.tam; desenharPecas();
-      const m2 = document.querySelector('.cartaoP[data-id="' + p.id + '"] .cpMed');
-      if (m2) m2.innerHTML = (r.fora ? '⚠ fora da tabela — mais próximo: ' : '📏 ') + '<b>tam. ' + esc(r.tam) + '</b>';
-    });
+    // Enquanto se escreve: mostra a sugestão e já marca o tamanho (sem redesenhar, para não fechar o teclado)
+    if (cm) cm.addEventListener('input', () => { E.cm = cm.value; aplicarMedida(c, p, E); });
     const be = c.querySelector('.btnEd');
     if (be) be.onclick = () => { PECA_ED = PECA_ED === p.id ? null : p.id; delete EDS[p.id]; desenharPecas(); };
     c.querySelector('.btnArr').onclick = () => {
@@ -2727,6 +2738,17 @@ function ligarCartoes() {
       gravarPeca(p, 'pecas', { ids: [p.id], situacao: 'Saiu antes de arrumar' }, '↗ Registada como saída antes de arrumar');
     };
   });
+}
+
+function aplicarMedida(c, p, E) {
+  const tMed = tipoMedidaPara(p.tipo), x = parseFloat(String(E.cm || '').replace(',', '.'));
+  const caixa = c.querySelector('.cpMed'); if (caixa) caixa.innerHTML = textoMedida(tMed, E);
+  const r = isNaN(x) ? null : tamanhoPorMedida(tMed, E.marca, x);
+  if (!r) return;
+  E.tam = r.tam;
+  c.querySelectorAll('[data-tam]').forEach(b => b.classList.toggle('sel', b.dataset.tam === r.tam));
+  const t = c.querySelector('.cpTam'); if (t) t.textContent = 'tam. ' + r.tam;
+  const ba = c.querySelector('.btnArr'); if (ba) ba.disabled = false;
 }
 
 /* ---------- Sugestão nas saídas: "esta peça vem de um saco por arrumar?" ---------- */

@@ -246,6 +246,28 @@
   .bloco.leva { border-color:var(--leva); } .bloco.leva .bloco-tit { background:var(--leva); }
   .bloco.ent { border-color:var(--acc); } .bloco.ent .bloco-tit { background:var(--acc); }
   .bloco.liv { border-color:#c9b98f; } .bloco.liv .bloco-tit { background:#f3ecd9; color:#5e4b16; }
+  /* LIVROS: abrir/fechar pelo título */
+  .bloco.liv .bloco-tit { cursor:pointer; user-select:none; -webkit-user-select:none; }
+  .bloco.liv .bloco-tit::after { content:'▾'; margin-left:6px; transition:transform .15s; }
+  .bloco.liv.fechado .bloco-tit::after { transform:rotate(-90deg); }
+  .bloco.liv.fechado ul { display:none; }
+  /* 💶 MODO DE PREÇOS */
+  #btnModoP { position:relative; } #btnModoP sup { position:absolute; right:2px; bottom:0; font-size:.62rem; font-weight:800; background:#6b3f69; color:#fff; border-radius:999px; min-width:14px; line-height:14px; text-align:center; }
+  #btnModoP.m1 sup { background:#2e8b57; }
+  body.aj-sem-modop #btnModoP { display:none !important; }
+  /* 🔍 DEFEITO? */
+  .defBtn { font-size:.78rem; border:1px solid #b9c9e2; background:#e6edf7; color:#2a4a7a; border-radius:999px; padding:2px 9px; margin-left:6px; cursor:pointer; text-transform:none; letter-spacing:0; font-weight:600; }
+  .defFundo { position:fixed; inset:0; z-index:9000; background:rgba(0,0,0,.35); display:flex; align-items:flex-end; justify-content:center; }
+  .defCaixa { background:#fff; width:100%; max-width:560px; max-height:88vh; border-radius:16px 16px 0 0; padding:12px 14px 16px; display:flex; flex-direction:column; gap:8px; }
+  .defTopo { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .defLista { overflow:auto; flex:1; display:flex; flex-direction:column; gap:6px; min-height:120px; }
+  .defIt { display:flex; justify-content:space-between; align-items:center; gap:8px; text-align:left; border:1px solid var(--line); background:#fff; border-radius:10px; padding:8px 10px; font:inherit; font-size:.92rem; cursor:pointer; color:var(--ink); }
+  .defIt small { display:block; color:var(--muted); font-size:.78rem; }
+  .defIt .dE { white-space:nowrap; font-weight:700; font-size:.85rem; }
+  .defIt.sel { border-color:var(--acc); background:#e3f2ec; }
+  .defIt.rec .dE { color:#a3402e; }
+  .defRes { font-size:.9rem; }
+  .defImp { align-self:center; font-size:.78rem; color:var(--muted); padding:2px; }
 
   .linhas li { display:flex; align-items:center; gap:8px; padding:8px 0; border-top:1px solid var(--line); }
   .linhas li:first-child { border-top:0; }
@@ -347,7 +369,7 @@
 
   <!-- ===== App ===== -->
   <section id="ecraApp" class="hidden">
-    <header class="hdrUni"><b class="tituloSimples">🧾 Banco de Fardas</b><div class="modos"><button data-modo="at"><span class="ico">🧾 </span>Atendimento</button><button data-modo="inv"><span class="ico">👕 </span>Inventário</button></div><button id="btnStock" class="hdrBtn" title="Stock ligado / desligado">📦</button><button id="btnMedir" class="hdrBtn" title="Medir (abre por cima, sem sair do atendimento)">📏</button><button id="btnForms" class="hdrBtn hidden" title="Formulários: novo crédito, entregas e pedidos (abrem por cima, já carregados)">📝</button><button id="btnManuais" class="hdrBtn" title="Manuais (abre noutro separador, que fica aberto)">📚</button><button id="btnAjustes" class="hdrBtn" title="Personalizar: escolher o que aparece">⚙️</button><button class="sair" id="btnSair">sair</button></header>
+    <header class="hdrUni"><b class="tituloSimples">🧾 Banco de Fardas</b><div class="modos"><button data-modo="at"><span class="ico">🧾 </span>Atendimento</button><button data-modo="inv"><span class="ico">👕 </span>Inventário</button></div><button id="btnStock" class="hdrBtn" title="Stock ligado / desligado">📦</button><button id="btnModoP" class="hdrBtn" title="Modo dos preços">💶<sup id="nModoP">1</sup></button><button id="btnMedir" class="hdrBtn" title="Medir (abre por cima, sem sair do atendimento)">📏</button><button id="btnForms" class="hdrBtn hidden" title="Formulários: novo crédito, entregas e pedidos (abrem por cima, já carregados)">📝</button><button id="btnManuais" class="hdrBtn" title="Manuais (abre noutro separador, que fica aberto)">📚</button><button id="btnAjustes" class="hdrBtn" title="Personalizar: escolher o que aparece">⚙️</button><button class="sair" id="btnSair">sair</button></header>
 
     <nav class="tabs" id="navAt">
       <button data-tab="sai">⬆ Saídas</button>
@@ -567,6 +589,7 @@ let MEDIDAS = [];
 let LIVROS = [{ sub: 'PNL', preco: 3 }, { sub: 'EMRC', preco: 3 }, { sub: 'Catequese', preco: 3 }];
 const CARRO_LIV = { leva: {}, entrega: {} };   // { 'Livro': 2 }
 let ESTADOS = [{ chave: 'Boa', nome: 'Boa (sem arranjos)', pct: 1 }], estSel = 'Boa';
+let MODO_PRECOS = 1, DEFEITOS = { lista: [], porTipo: {} };   // 💶 modo dos preços · 🔍 defeitos
 let ARTIGOS = [], scanner = null, scanBtn = null, scanTxt = '', atual = null, qtd = 1, motivo = '', AVISO_PRECOS = '';
 const filtro = { cat: '', sub: '', tam: [] };   // tam: vários tamanhos ao mesmo tempo (ex.: 8 e 10)
 const MOTIVOS = ['Doação', 'Troca', 'Venda', 'Acerto'];
@@ -647,6 +670,7 @@ async function entrar(automatico) {
     FORMS = { credito: d.formTaloes || '', entregas: d.formEntregas || '' }; prepararForms();
     if (d.formTaloes) { lf.href = d.formTaloes; lf.classList.remove('hidden'); } else lf.classList.add('hidden');
     if (d.estados && d.estados.length) ESTADOS = d.estados;
+    MODO_PRECOS = Number(d.modoPrecos) || 1; DEFEITOS = d.defeitos || DEFEITOS; pintarModo();   // 💶 / 🔍
     MEDIDAS = d.medidas || [];
     LIVROS = d.livros || LIVROS;
     contarEspera();
@@ -954,7 +978,12 @@ const vendiveis = () => ARTIGOS.filter(a => a.vende !== false);
 // Na ficha e no "Leva" mostra também estados desligados que ainda têm peças (para lhes poder dar saída)
 const estadosComStock = a => ESTADOS.filter(e => estadosDe(a).includes(e) || (a.est && (a.est[e.chave] || 0) > 0));
 const nomeEst = k => (ESTADOS.find(e => e.chave === k) || { nome: k }).nome;
-const precoEst = (a, k) => a.precos ? a.precos[k] : a.preco;
+// Estado de C0 (folha Estados); nos modos 2 e 3 todas as peças têm o preço de C0
+const chaveC0 = () => (ESTADOS.find(e => String(e.cod || '').trim().toUpperCase() === 'C0') || ESTADOS.find(e => e.chave === 'Boa') || ESTADOS[0]).chave;
+const estDoPreco = k => MODO_PRECOS >= 2 ? chaveC0() : k;
+// Modo 3: no balcão só aparece C0 (mais o estado que já lá estiver, ex.: o da ficha dos pais)
+const estadosBalcao = (a, atual) => MODO_PRECOS !== 3 ? estadosDe(a) : ESTADOS.filter(e => e.chave === chaveC0() || e.chave === atual);
+const precoEst = (a, k) => a.precos ? a.precos[estDoPreco(k)] : a.preco;
 
 function mostrar(a) {
   atual = a; qtd = 1; motivo = '';
@@ -1060,7 +1089,7 @@ function tiposDePeca() {
   return Object.values(m).sort((x, y) => x.grupo.localeCompare(y.grupo, 'pt') || x.tipo.localeCompare(y.tipo, 'pt'));
 }
 const tipoInfo = sub => tiposDePeca().find(t => t.tipo === sub);
-const precoTipo = (sub, est) => { const t = tipoInfo(sub); return t ? (t.precos ? t.precos[est] : t.preco) : null; };
+const precoTipo = (sub, est) => { const t = tipoInfo(sub); return t ? (t.precos ? t.precos[estDoPreco(est)] : t.preco) : null; };
 function juntarEnt(sub, n, est) {
   est = est || 'Boa';
   const k = chaveC(sub, est);
@@ -1219,7 +1248,7 @@ function painelPeca(a, ent) {
   li.innerHTML = '<div class="nm"><b>' + (ent ? '⬇ Entrada: ' : '⬆ Saída: ') + '</b>' + esc(nomeArtigo(a)) + ' <b>· ' + esc(a.tamanho) + '</b>' +
     (ent ? ' <span class="stkTag">entra no stock</span>' : '') + '<small>Toca no estado (cada toque junta 1). As quantidades acertam-se em baixo.</small></div>';
   const box = document.createElement('div'); box.className = 'painelEst';
-  (ent ? estadosDe(a) : estadosComStock(a)).forEach(e => {
+  (ent ? estadosBalcao(a) : MODO_PRECOS === 3 && SEM_STOCK ? estadosBalcao(a) : estadosComStock(a)).forEach(e => {
     const p = precoEst(a, e.chave), livres = disponivel(a, e.chave), q = CARRO[tipo][chaveC(a.id, e.chave)] || 0;
     const b = document.createElement('button'); b.className = 'estL';
     b.innerHTML = '<span class="noC' + (q ? '' : ' zero') + '">' + (q ? q + '×' : '+') + '</span>' +
@@ -1237,7 +1266,7 @@ function painelSemTamanho(t) {
   li.innerHTML = '<div class="nm"><b>⬇ Entrada: </b>' + esc(t.tipo) + ' <span class="espTag">⏳ sem tamanho</span>' +
     '<small>Vai para a sala de espera e é inventariada depois. Toca no estado (cada toque junta 1).</small></div>';
   const box = document.createElement('div'); box.className = 'painelEst';
-  estadosDe(t).forEach(e => {
+  estadosBalcao(t).forEach(e => {
     const p = precoTipo(t.tipo, e.chave), q = CARRO.espera[chaveC(t.tipo, e.chave)] || 0;
     const b = document.createElement('button'); b.className = 'estL';
     b.innerHTML = '<span class="noC' + (q ? '' : ' zero') + '">' + (q ? q + '×' : '+') + '</span><span class="nmE">' + esc(e.nome) + '</span>' +
@@ -1378,6 +1407,7 @@ function desenharLivros() {
     });
     document.getElementById(idN).textContent = n ? n + (n === 1 ? ' livro' : ' livros') : '';
   });
+  pintarLivrosAbertos();
 }
 
 /* Linha do carrinho em 2 andares: [nome · subtotal · ✕] / [estado · − n +] */
@@ -1399,7 +1429,7 @@ function desenharEntregas() {
   ids.forEach(k => {
     const [id, est] = partes(k), a = art(id); if (!a) return;
     const q = CARRO.entrega[k], p = precoEst(a, est);
-    const opcoes = estadosDe(a).map(e => '<option value="' + esc(e.chave) + '"' + (e.chave === est ? ' selected' : '') + '>' + esc(e.nome) +
+    const opcoes = estadosBalcao(a, est).map(e => '<option value="' + esc(e.chave) + '"' + (e.chave === est ? ' selected' : '') + '>' + esc(e.nome) +
       (precoEst(a, e.chave) != null ? ' · ' + eur(precoEst(a, e.chave)) : '') + '</option>').join('');
     const li = linhaCarro(esc(nomeArtigo(a)) + ' <b>· ' + esc(a.tamanho) + '</b> <span class="stkTag">stock</span>', opcoes, q, q * (p || 0),
       p == null ? '⚠ sem preço' : '');
@@ -1411,7 +1441,7 @@ function desenharEntregas() {
   // sem tamanho → sala de espera
   ks.forEach(k => {
     const [sub, est] = partes(k), q = CARRO.espera[k], p = precoTipo(sub, est);
-    const opcoes = estadosDe(tipoInfo(sub)).map(e => '<option value="' + esc(e.chave) + '"' + (e.chave === est ? ' selected' : '') + '>' + esc(e.nome) +
+    const opcoes = estadosBalcao(tipoInfo(sub), est).map(e => '<option value="' + esc(e.chave) + '"' + (e.chave === est ? ' selected' : '') + '>' + esc(e.nome) +
       (precoTipo(sub, e.chave) != null ? ' · ' + eur(precoTipo(sub, e.chave)) : '') + '</option>').join('');
     const li = linhaCarro(esc(sub) + ' <span class="espTag">⏳ sem tam.</span>', opcoes, q, q * (p || 0), p == null ? '⚠ sem preço' : '');
     li.querySelector('.estSel').onchange = e => mudarEstadoLinha('espera', k, e.target.value);
@@ -1511,7 +1541,7 @@ function resumoAt() {
 }
 
 function limparAt() {
-  CARRO.leva = {}; CARRO.entrega = {}; CARRO.espera = {}; CARRO.semL = {}; CARRO.semE = {}; CARRO_LIV.leva = {}; CARRO_LIV.entrega = {}; idPendente = null; PEDIDO_ATUAL = null;
+  CARRO.leva = {}; CARRO.entrega = {}; CARRO.espera = {}; CARRO.semL = {}; CARRO.semE = {}; CARRO_LIV.leva = {}; CARRO_LIV.entrega = {}; idPendente = null; PEDIDO_ATUAL = null; LIV_ABERTO = { leva: null, entrega: null };
   FICHA_ATUAL = null; VERIF = null; desenharVerif();
   pesqA.value = ''; ABERTO_A = null; filtroA.cat = filtroA.sub = ''; filtroA.tam = []; desenharFiltrosA(); listarA();
   tirarTalao();
@@ -1712,7 +1742,7 @@ function painelEspera(e) {
       '<input class="mCm" type="text" inputmode="decimal" placeholder="📏 medida em cm" style="margin-top:6px">' +
       '<div class="mRes meta" style="margin-top:4px"></div>'
       : '<div class="meta" style="margin-top:6px">Sem medidas para «' + esc(e.tipo) + '» na folha Medidas: escolhe o tamanho abaixo.</div>') +
-    '<div class="filtro-tit">Estado</div><div class="chips mEst"></div>' +
+    '<div class="filtro-tit">Estado' + (DEFEITOS.lista.length ? '<button class="defBtn">🔍 Defeito?</button>' : '') + '</div><div class="chips mEst"></div>' +
     '<div class="filtro-tit">Tamanho</div><div class="chips mTam"></div>' +
     '<button class="btn btn-acc mOk" style="margin-top:10px" disabled>Escolhe o tamanho</button>' +
     '<details class="naoInv" style="margin-top:12px"><summary class="link vermelho" style="cursor:pointer">Não entra no stock…</summary>' +
@@ -1724,6 +1754,7 @@ function painelEspera(e) {
   const ok = box.querySelector('.mOk');
   let estE = e.estado || 'Boa';
   const zEst = box.querySelector('.mEst');
+  const bDef = box.querySelector('.defBtn'); if (bDef) bDef.onclick = () => abrirDefeitos(e.tipo, k => { estE = k; pintar(); });
   const estOk = estadosDe(tipoInfo(e.tipo)).slice();
   if (!estOk.some(x => x.chave === estE)) estOk.push(ESTADOS.find(x => x.chave === estE) || { chave: estE, nome: estE });
   estOk.forEach(x => {
@@ -2576,7 +2607,7 @@ function painelSem(t, ent) {
   });
   const box = document.createElement('div'); box.className = 'painelEst';
   const falta = ent && TAM_SEM == null;
-  estadosDe(t).forEach(e => {
+  estadosBalcao(t).forEach(e => {
     const p = precoTipo(t.tipo, e.chave);
     const q = TAM_SEM === '?' ? (CARRO.espera[chaveC(t.tipo, e.chave)] || 0) : TAM_SEM == null ? 0 : (mapaSem(dir)[chaveS(t.tipo, TAM_SEM, e.chave)] || 0);
     const b = document.createElement('button'); b.className = 'estL';
@@ -2612,7 +2643,7 @@ function desenharSemCarro(dir) {
   const vazia = ul.querySelector('.vaziaL'); if (vazia) vazia.remove();
   ks.forEach(k => {
     const [sub, tam, est] = partesS(k), q = m[k], p = precoTipo(sub, est), t = tipoInfo(sub);
-    const opcoes = estadosDe(t || { tipo: sub }).map(e => '<option value="' + esc(e.chave) + '"' + (e.chave === est ? ' selected' : '') + '>' + esc(e.nome) +
+    const opcoes = estadosBalcao(t || { tipo: sub }, est).map(e => '<option value="' + esc(e.chave) + '"' + (e.chave === est ? ' selected' : '') + '>' + esc(e.nome) +
       (precoTipo(sub, e.chave) != null ? ' · ' + eur(precoTipo(sub, e.chave)) : '') + '</option>').join('');
     const li = linhaCarro(esc(sub) + (tam ? ' <b>· ' + esc(tam) + '</b>' : '') + ' <span class="stkTag">s/ stock</span>', opcoes, q, q * (p || 0),
       p == null ? '⚠ sem preço' : '');
@@ -2732,7 +2763,7 @@ function cartaoPeca(p, primeira) {
     h += '<div class="cpEd"><div class="filtro-tit">Tamanho</div><div class="chips">' +
       tams.map(x => '<button class="chip' + (x === tam ? ' sel' : '') + '" data-tam="' + esc(x) + '">' + esc(x) + '</button>').join('') + '</div>' +
       medidaCartao(p, E) +
-      '<div class="filtro-tit">Estado</div><div class="chips">' +
+      '<div class="filtro-tit">Estado' + (DEFEITOS.lista.length ? '<button class="defBtn">🔍 Defeito?</button>' : '') + '</div><div class="chips">' +
       ests.map(e => '<button class="chip' + (e.chave === est ? ' sel' : '') + '" data-est="' + esc(e.chave) + '" title="' + esc(e.nome) + '">' + esc(curtoEst(e)) + '</button>').join('') + '</div></div>';
   }
   h += '<div class="cpAcoes"><button class="btnArr"' + (semTam && !tam ? ' disabled' : '') + '>✔ Arrumada</button>' +
@@ -2771,6 +2802,7 @@ function ligarCartoes() {
     const E = edDe(p);
     c.querySelectorAll('[data-tam]').forEach(b => b.onclick = () => { E.tam = b.dataset.tam; desenharPecas(); });
     c.querySelectorAll('[data-est]').forEach(b => b.onclick = () => { E.est = b.dataset.est; desenharPecas(); });
+    const bd = c.querySelector('.defBtn'); if (bd) bd.onclick = () => abrirDefeitos(p.tipo, k => { E.est = k; desenharPecas(); });
     c.querySelectorAll('[data-marca]').forEach(b => b.onclick = () => { E.marca = b.dataset.marca; aplicarMedida(c, p, E); desenharPecas(); });
     c.querySelectorAll('[data-tmed]').forEach(b => b.onclick = () => { E.tab = b.dataset.tmed; E.marca = null; tabelaDoCartao(p, E); aplicarMedida(c, p, E); desenharPecas(); });
     const cm = c.querySelector('.cpCm');
@@ -3061,6 +3093,117 @@ setInterval(() => {
 /* /PEDIDOS */
 
 /* =====================================================================
+   💶 MODO DE PREÇOS (igual para todos os aparelhos; guardado no Apps Script)
+   1 = preço por estado · 2 = escolhe-se o estado, mas paga/credita sempre o preço de C0 · 3 = balcão só com C0
+   No modo 3: Saídas/Entradas sem botões de estado (tudo C0); as fichas dos pais mantêm o estado; Espera/Arrumar classificam.
+   ===================================================================== */
+const NOMES_MODO = { 1: 'preços por estado', 2: 'preço único (o de C0) — o estado escolhe-se na mesma', 3: 'só C0 no balcão' };
+function pintarModo() {
+  const b = document.getElementById('btnModoP'); if (!b) return;
+  document.getElementById('nModoP').textContent = MODO_PRECOS;
+  b.title = 'Modo dos preços (para todos os aparelhos): ' + MODO_PRECOS + ' — ' + NOMES_MODO[MODO_PRECOS] + '. Toca para mudar.';
+  b.classList.toggle('m1', MODO_PRECOS === 1);
+}
+function aplicarModo(m) {
+  m = Number(m) || 1;
+  if (m === MODO_PRECOS) return;
+  MODO_PRECOS = m; pintarModo();
+  try { if (ABERTO_A) listarA(); desenharAt(); if (TAB_ATUAL === 'res') desenharResumo(); } catch (e) {}
+}
+document.getElementById('btnModoP').onclick = async () => {
+  const novo = MODO_PRECOS % 3 + 1;
+  if (!confirm('Mudar o modo dos preços em TODOS os aparelhos para:\n\n' + novo + ' — ' + NOMES_MODO[novo] + '?')) return;
+  try { const r = await api('modoPrecos', { modo: novo }); aplicarModo(r.modoPrecos); toast('💶 Modo ' + r.modoPrecos + ': ' + NOMES_MODO[r.modoPrecos]); }
+  catch (e) { toast('Erro: ' + e.message); }
+};
+// Quando a app volta a estar à frente, vê se o modo mudou noutro aparelho
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || document.getElementById('ecraApp').classList.contains('hidden')) return;
+  api('modo', null, null, { silencioso: true }).then(r => aplicarModo(r.modoPrecos)).catch(() => {});
+});
+
+/* =====================================================================
+   🔍 DEFEITO? — na Espera e no Arrumar: escolher o(s) defeito(s) e a app dá o estado (o pior)
+   Lista da folha Defeitos (a mesma da ficha dos pais), só com os que se aplicam a esta peça.
+   ===================================================================== */
+function defeitosDoTipo(tipo) {
+  const L = (DEFEITOS && DEFEITOS.lista) || [], pt = (DEFEITOS && DEFEITOS.porTipo) || {};
+  const k = Object.keys(pt).find(x => semAcentos(x) === semAcentos(tipo));
+  const info = k ? pt[k] : { ocultos: [], recusa: [] };
+  return L.filter(d => !(info.ocultos || []).includes(d.texto)).map(d => Object.assign({ recusa: (info.recusa || []).includes(d.texto) }, d));
+}
+const ordemEst = k => ESTADOS.findIndex(e => e.chave === k);
+function abrirDefeitos(tipo, aoEscolher) {
+  const lista = defeitosDoTipo(tipo), marcados = new Set();
+  const fundo = document.createElement('div'); fundo.className = 'defFundo';
+  fundo.innerHTML = '<div class="defCaixa"><div class="defTopo"><b>🔍 Defeito? · ' + esc(tipo) + '</b><button class="mini2 defX">✕</button></div>' +
+    '<input type="search" class="defQ" placeholder="Procurar (ex.: borbotos, mancha, fecho)" autocomplete="off">' +
+    '<div class="defLista"></div><div class="defRes"></div>' +
+    '<div class="defAcoes"><button class="btn btn-acc defOk" disabled>Escolhe o defeito</button></div>' +
+    '<button class="link defImp">imprimir cartão de bolso</button></div>';
+  document.body.appendChild(fundo);
+  const fechar = () => fundo.remove();
+  fundo.querySelector('.defX').onclick = fechar;
+  fundo.onclick = e => { if (e.target === fundo) fechar(); };
+  const q = fundo.querySelector('.defQ'), box = fundo.querySelector('.defLista'), res = fundo.querySelector('.defRes'), ok = fundo.querySelector('.defOk');
+  const pior = () => { let k = null; lista.filter(d => marcados.has(d.texto)).forEach(d => { if (k === null || ordemEst(d.estado) > ordemEst(k)) k = d.estado; }); return k; };
+  const desenhar = () => {
+    const t = semAcentos(q.value.trim());
+    const l = lista.filter(d => !t || semAcentos(d.texto + ' ' + (d.explicacao || '')).includes(t));
+    box.innerHTML = l.length ? '' : '<p class="meta">Nenhum defeito encontrado.</p>';
+    l.forEach(d => {
+      const e = ESTADOS.find(x => x.chave === d.estado) || { nome: d.estado };
+      const b = document.createElement('button'); b.className = 'defIt' + (marcados.has(d.texto) ? ' sel' : '') + (d.recusa ? ' rec' : '');
+      b.innerHTML = '<span class="dT">' + esc(d.texto) + (d.explicacao ? '<small>' + esc(d.explicacao) + '</small>' : '') + '</span>' +
+        '<span class="dE">' + (d.recusa ? '✕ não se aceita' : esc(curtoEst(e))) + '</span>';
+      b.onclick = () => { marcados.has(d.texto) ? marcados.delete(d.texto) : marcados.add(d.texto); desenhar(); };
+      box.appendChild(b);
+    });
+    const k = pior(), rec = lista.filter(d => marcados.has(d.texto) && d.recusa);
+    const permitido = !k || estadosDe(tipoInfo(tipo)).some(e => e.chave === k);
+    res.innerHTML = !marcados.size ? '' : (rec.length ? '⚠ <b>Não se aceita nesta peça:</b> ' + rec.map(d => esc(d.texto)).join(', ') + '<br>' : '') +
+      (k ? 'Estado: <b>' + esc(nomeEst(k)) + '</b>' + (permitido ? '' : '<br>⚠ Este estado não está ligado para esta peça (folha Tipos).') : '');
+    ok.disabled = !k || !permitido;
+    ok.textContent = k ? 'Usar ' + curtoEst(ESTADOS.find(x => x.chave === k) || { nome: k }) : 'Escolhe o defeito';
+  };
+  q.oninput = desenhar;
+  ok.onclick = () => { const k = pior(); fechar(); if (k) aoEscolher(k); };
+  fundo.querySelector('.defImp').onclick = imprimirCartaoDefeitos;
+  desenhar();
+  setTimeout(() => q.focus(), 50);
+}
+// Cartão de bolso: todos os defeitos agrupados por estado (página à parte, para imprimir)
+function imprimirCartaoDefeitos() {
+  const L = (DEFEITOS && DEFEITOS.lista) || [];
+  const grupos = ESTADOS.map(e => ({ e, l: L.filter(d => d.estado === e.chave) })).filter(g => g.l.length);
+  const w = window.open('', '_blank'); if (!w) { toast('O browser bloqueou a janela.'); return; }
+  w.document.write('<!doctype html><html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Cartão de defeitos</title><style>' +
+    'body{font-family:system-ui,Arial,sans-serif;margin:10mm;color:#111;font-size:9pt}h1{font-size:11pt;margin:0 0 4mm}' +
+    '.cols{columns:2;column-gap:6mm}.g{break-inside:avoid;margin:0 0 3mm;border:1px solid #999;border-radius:2mm;padding:2mm 3mm}' +
+    '.g b{display:block;font-size:9.5pt;margin-bottom:1mm}.g div{margin:.6mm 0}.g small{color:#555}@media print{button{display:none}}</style></head><body>' +
+    '<button onclick="print()">🖨 Imprimir</button><h1>Defeitos → estado · Banco de Fardas</h1><div class="cols">' +
+    grupos.map(g => '<div class="g"><b>' + esc(g.e.nome) + '</b>' + g.l.map(d => '<div>• ' + esc(d.texto) + (d.explicacao ? ' <small>(' + esc(d.explicacao) + ')</small>' : '') + '</div>').join('') + '</div>').join('') +
+    '</div></body></html>');
+  w.document.close();
+}
+
+/* =====================================================================
+   📚 LIVROS nas Saídas/Entradas: começam fechados; tocar no título abre/fecha; abrem sozinhos se houver livros
+   ===================================================================== */
+let LIV_ABERTO = { leva: null, entrega: null };   // null = automático
+function pintarLivrosAbertos() {
+  [['leva', 'lLivS'], ['entrega', 'lLivE']].forEach(([dir, id]) => {
+    const sec = document.getElementById(id) && document.getElementById(id).closest('section'); if (!sec) return;
+    const tem = Object.values(CARRO_LIV[dir] || {}).some(q => q > 0);
+    const aberto = LIV_ABERTO[dir] === null ? tem : LIV_ABERTO[dir];
+    sec.classList.toggle('fechado', !aberto);
+    const t = sec.querySelector('.bloco-tit');
+    if (!t.dataset.ligado) { t.dataset.ligado = '1'; t.onclick = () => { LIV_ABERTO[dir] = sec.classList.contains('fechado'); pintarLivrosAbertos(); }; }
+  });
+}
+/* /MODO · DEFEITOS · LIVROS */
+
+/* =====================================================================
    ⚙️ PERSONALIZAR: cada pessoa escolhe o que vê (fica guardado neste aparelho).
    Só muda o aspeto: nada é apagado nem desligado nos dados.
    Da primeira vez abre em "Simples".
@@ -3069,6 +3212,7 @@ const FUNCS = [
   { k: 'inv',     nome: '👕 Inventário',        txt: 'Lado Inventário (Inventário, Medir, Espera, Arrumar)' },
   { k: 'fic',     nome: '📋 Fichas nas Entradas', txt: 'Procurar a ficha dos pais nas Entradas' },
   { k: 'fictab',  nome: '📋 Separador Fichas',  txt: 'QR da ficha, lista completa e ficha em papel (OCR)' },
+  { k: 'modop',   nome: '💶 Botão dos modos de preço', txt: 'Muda para TODOS os aparelhos: 1 preços por estado · 2 preço único · 3 só C0 no balcão' },
   { k: 'ped',     nome: '🛍 Separador Pedidos', txt: 'Lista completa dos pedidos e QR para os pais' },
   { k: 'pedsai',  nome: '🛍 Pedidos nas Saídas', txt: 'Lista dos pedidos dos pais nas Saídas' },
   { k: 'papel',   nome: '📷 Ficha em papel',    txt: 'Leitor de fichas em papel' },
@@ -3081,13 +3225,14 @@ const FUNCS = [
   { k: 'sacos',   nome: '📦 Sacos',             txt: 'Aviso "Escreve no saco" e sugestão "vem de um saco?"' },
   { k: 'som',     nome: '🔊 Som ao ler QR',     txt: 'Bip quando a câmara lê um código' }
 ];
-const PRESET_SIMPLES = { inv: false, fic: true, fictab: false, ped: false, pedsai: false, papel: false, medir: false, forms: false, manuais: false, stock: false, livros: true, qr: false, sacos: false, som: true };
-const PRESET_COMPLETO = { inv: true, fic: true, fictab: true, ped: true, pedsai: true, papel: true, medir: true, forms: true, manuais: true, stock: true, livros: true, qr: true, sacos: true, som: true };
+const PRESET_SIMPLES = { inv: false, fic: true, fictab: false, ped: false, pedsai: false, modop: false, papel: false, medir: false, forms: false, manuais: false, stock: false, livros: true, qr: false, sacos: false, som: true };
+const PRESET_COMPLETO = { inv: true, fic: true, fictab: true, ped: true, pedsai: true, modop: false, papel: true, medir: true, forms: true, manuais: true, stock: true, livros: true, qr: true, sacos: true, som: true };
 let AJ = (() => { try { const s = JSON.parse(lerGuardado('fardasv1_ajustes') || 'null');
   // escolhas guardadas antes destas opções: o separador Fichas fica como estava; Pedidos começa desligado
   if (s && !('fictab' in s)) s.fictab = s.fic !== false;
   if (s && !('ped' in s)) s.ped = false;
   if (s && !('pedsai' in s)) s.pedsai = true;
+  if (s && !('modop' in s)) s.modop = false;
   return s ? Object.assign({}, PRESET_COMPLETO, s) : Object.assign({}, PRESET_SIMPLES); } catch (e) { return Object.assign({}, PRESET_SIMPLES); } })();
 const iguais = (a, b) => FUNCS.every(f => !!a[f.k] === !!b[f.k]);
 

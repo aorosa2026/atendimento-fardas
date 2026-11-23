@@ -53,6 +53,14 @@
   .ficha-it small { display:block; color:var(--muted); }
   .verif { background:#fff; border:2px solid var(--acc); border-radius:14px; padding:12px; margin:10px 0; }
   .verif h3 { margin:0 0 2px; font-size:1.05rem; }
+  /* DEFEITOS NA PEÇA */
+  .defChips { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; align-items:center; }
+  .defChip { display:inline-flex; align-items:center; gap:2px; background:#fff3e0; border:1px solid #f0c890; color:#7a4a00; border-radius:999px; padding:2px 4px 2px 9px; font-size:.8rem; }
+  .defChip button { border:0; background:none; color:#a3402e; font-size:.85rem; cursor:pointer; padding:0 4px; }
+  .defMais { border:1px dashed #b9c9e2; background:#fff; color:#2a4a7a; border-radius:999px; padding:2px 9px; font-size:.8rem; cursor:pointer; }
+  .sacoTag { display:inline-flex; align-items:center; gap:2px; background:#e6edf7; border:1px solid #b9c9e2; color:#2a4a7a; border-radius:999px; padding:1px 3px 1px 8px; font-size:.75rem; margin:4px 4px 0 0; }
+  .sacoTag button { border:0; background:none; color:#a3402e; cursor:pointer; padding:0 4px; }
+  .vistaFicha { font-size:.78rem; border:1px solid var(--line); background:#fff; border-radius:8px; padding:3px 9px; cursor:pointer; margin-top:6px; }
   .vgrp { font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:12px 0 4px; }
   .vp { border:1px solid var(--line); border-radius:10px; padding:8px 10px; margin-bottom:6px; }
   .vp.ok { border-color:#8cc7b2; background:#f2faf6; } .vp.nao { border-color:#e7b3a9; background:#fdf3f1; }
@@ -1063,7 +1071,7 @@ async function movimentar(sinal) {
    ATENDIMENTO
    ===================================================================== */
 // leva/entrega: { 'id|estado': qtd } (peça com tamanho) · espera: { 'Tipo|estado': qtd } (entregue sem tamanho)
-const CARRO = { leva: {}, entrega: {}, espera: {}, semL: {}, semE: {} };   // semL/semE = modo sem stock
+const CARRO = { leva: {}, entrega: {}, espera: {}, semL: {}, semE: {}, saco: [] };   // semL/semE = modo sem stock · saco = peças das saídas que vêm de sacos por arrumar
 let MODO_AT = 'leva';
 let ABERTO_A = null;   // peça aberta na lista do atendimento: id do artigo ou 'esp:Tipo' (entrega sem tamanho)
 let idPendente = null;                     // mantém o mesmo código se for preciso repetir o envio
@@ -1456,6 +1464,7 @@ function desenharEntregas() {
 
 const livTot = dir => LIVROS.reduce((t, lv) => t + (CARRO_LIV[dir][lv.sub] || 0) * lv.preco, 0);
 function desenharAt() {
+  podarSaco();
   if (ABERTO_A) listarA();
   desenharEntregas();
   desenharLivros();
@@ -1476,7 +1485,7 @@ function desenharAt() {
       li.querySelector('.estSel').onchange = e => mudarEstadoLinha(tipo, k, e.target.value);
       li.querySelectorAll('.mini button').forEach(b => b.onclick = () => juntar(tipo, a, +b.dataset.d, est));
       li.querySelector('.tira').onclick = () => juntar(tipo, a, -q, est);
-      if (tipo === 'leva') botaoSaco(li, a.subcategoria, a.tamanho);
+      if (tipo === 'leva') { etiquetasSaco(li, a.subcategoria, a.tamanho); if (ligadasSaco(a.subcategoria, a.tamanho) < qtdSaidas(a.subcategoria, a.tamanho)) botaoSaco(li, a.subcategoria, a.tamanho); }
       ul.appendChild(li);
     });
   });
@@ -1543,7 +1552,7 @@ function resumoAt() {
 }
 
 function limparAt() {
-  CARRO.leva = {}; CARRO.entrega = {}; CARRO.espera = {}; CARRO.semL = {}; CARRO.semE = {}; CARRO_LIV.leva = {}; CARRO_LIV.entrega = {}; idPendente = null; PEDIDO_ATUAL = null; LIV_ABERTO = { leva: null, entrega: null };
+  CARRO.leva = {}; CARRO.entrega = {}; CARRO.espera = {}; CARRO.semL = {}; CARRO.semE = {}; CARRO.saco = []; CARRO_LIV.leva = {}; CARRO_LIV.entrega = {}; idPendente = null; PEDIDO_ATUAL = null; LIV_ABERTO = { leva: null, entrega: null };
   FICHA_ATUAL = null; VERIF = null; desenharVerif();
   pesqA.value = ''; ABERTO_A = null; filtroA.cat = filtroA.sub = ''; filtroA.tam = []; desenharFiltrosA(); listarA();
   tirarTalao();
@@ -1570,8 +1579,12 @@ document.getElementById('btnConfirmar').onclick = async () => {
   linhasSem().forEach(l => linhas.push(l));
   ['leva', 'entrega'].forEach(dir => Object.entries(CARRO_LIV[dir]).forEach(([sub, qtd]) => linhas.push({ tipo: 'livro', sub, dir, qtd })));
   try {
-    const r = await api('atendimento', { idAt: idPendente, talao: TALAO ? TALAO.canhao : '', ficha: FICHA_ATUAL ? FICHA_ATUAL.codigo : '', pedido: PEDIDO_ATUAL ? PEDIDO_ATUAL.codigo : '', linhas });
+    const r = await api('atendimento', { idAt: idPendente, talao: TALAO ? TALAO.canhao : '', ficha: FICHA_ATUAL ? FICHA_ATUAL.codigo : '', pedido: PEDIDO_ATUAL ? PEDIDO_ATUAL.codigo : '', linhas,
+      pecasFicha: FICHA_ATUAL && FICHA_ATUAL.pecas ? FICHA_ATUAL.pecas : [], fichaMax: FICHA_ATUAL ? FICHA_ATUAL.max || 0 : 0,
+      pecasSaco: (podarSaco(), CARRO.saco.map(x => ({ id: x.id, tam: x.tam && !x.tamP ? x.tam : '' }))) });
     if (r.fichaApagada) { FICHAS = FICHAS.filter(f => f.codigo !== (FICHA_ATUAL || {}).codigo); contarFichas(); }
+    if (CARRO.saco.length) { const ids = CARRO.saco.map(x => x.id); PECAS = PECAS.filter(p => !ids.includes(p.id)); }   // saíram dos sacos agora
+    ARR_T = 0;   // Espera/Arrumar: voltar a carregar (há peças novas)
     if (r.pedidoApagado) { PEDIDOS = PEDIDOS.filter(p => p.codigo !== (PEDIDO_ATUAL || {}).codigo); contarPedidos(); }   // PEDIDOS
     atualizarStocks(r.stocks);
     limparAt();
@@ -1632,18 +1645,31 @@ document.getElementById('btnHist').onclick = carregarHist;
 /* =====================================================================
    ESPERA: peças entregues sem tamanho → escolher/medir o tamanho → stock
    ===================================================================== */
-let ESPERA = [], espAberta = null;
-async function contarEspera() {
-  try { const r = await api('espera'); ESPERA = r.espera || []; } catch (e) { return; }
+let ESPERA = [], espAberta = null, ARR_T = 0, ARR_ASSIN = '';
+const ESP_ED = {};   // escolhas feitas na peça da Espera (estado, defeitos) — não se perdem ao redesenhar
+// Espera e Arrumar vêm juntas (uma chamada); ao mudar de separador mostra logo o que já tem e atualiza por trás
+async function carregarArrumacao(silencioso) {
+  try {
+    const r = await api('arrumacao', null, null, { silencioso: !!silencioso });
+    ESPERA = r.espera || []; PECAS = r.pecas || []; ARR_T = Date.now();
+  } catch (e) {
+    // Apps Script ainda sem 'arrumacao': como antes, uma de cada vez
+    try { ESPERA = (await api('espera')).espera || []; PECAS = (await api('pecas')).pecas || []; ARR_T = Date.now(); } catch (e2) { if (!silencioso) toast('Erro: ' + e2.message); return false; }
+  }
   document.getElementById('nEsp').textContent = ESPERA.length ? '(' + ESPERA.length + ')' : '';
+  const assin = ESPERA.map(x => x.idE).join(',') + '|' + PECAS.map(x => x.id + x.sit).join(',');
+  const mudou = assin !== ARR_ASSIN; ARR_ASSIN = assin;
+  return mudou;
 }
-async function carregarEspera() {
+async function contarEspera() { await carregarArrumacao(true); }
+async function carregarEspera(forcar) {
   const ul = document.getElementById('listaEsp');
+  if (ARR_T && forcar !== true) { desenharEspera(); if (await carregarArrumacao(true) && TAB_ATUAL === 'esp') desenharEspera(); return; }
   ul.innerHTML = '<li class="meta">A carregar…</li>';
-  await contarEspera();
+  await carregarArrumacao();
   desenharEspera();
 }
-document.getElementById('btnEspAtual').onclick = carregarEspera;
+document.getElementById('btnEspAtual').onclick = () => carregarEspera(true);
 
 // Tipo da folha Medidas que corresponde a este tipo de peça (ex.: "Polo" para "Polo verão")
 /* ---------- MEDIDAS: nomes da folha Medidas ↔ peças do inventário ----------
@@ -1722,7 +1748,8 @@ function desenharEspera() {
     const li = document.createElement('li');
     if (espAberta === e.idE) li.className = 'aberto';
     li.innerHTML = '<div class="topo"><div><b>' + esc(e.tipo) + '</b> · ' + esc(nomeEst(e.estado)) +
-      '<small>' + esc(e.data) + (e.talao ? ' · talão ' + esc(e.talao) : '') + (e.quem ? ' · ' + esc(e.quem) : '') + '</small></div>' +
+      '<small>' + (e.saco ? '📦 ' + esc(e.saco) + (e.n ? ' #' + e.n : '') + ' · ' : '') + esc(e.data) + (e.talao && !/^Talão/.test(e.saco || '') ? ' · talão ' + esc(e.talao) : '') + (e.quem ? ' · ' + esc(e.quem) : '') + '</small>' +
+      ((e.defeitos || []).length && espAberta !== e.idE ? '<small>⚠ ' + esc(e.defeitos.join(' · ')) + '</small>' : '') + '</div>' +
       '<span class="meta">' + (espAberta === e.idE ? '▴' : '▾') + '</span></div>';
     li.querySelector('.topo').onclick = () => { espAberta = espAberta === e.idE ? null : e.idE; desenharEspera(); };
     if (espAberta === e.idE) li.appendChild(painelEspera(e));
@@ -1744,7 +1771,7 @@ function painelEspera(e) {
       '<input class="mCm" type="text" inputmode="decimal" placeholder="📏 medida em cm" style="margin-top:6px">' +
       '<div class="mRes meta" style="margin-top:4px"></div>'
       : '<div class="meta" style="margin-top:6px">Sem medidas para «' + esc(e.tipo) + '» na folha Medidas: escolhe o tamanho abaixo.</div>') +
-    '<div class="filtro-tit">Estado' + (DEFEITOS.lista.length ? '<button class="defBtn">🔍 Defeito?</button>' : '') + '</div><div class="chips mEst"></div>' +
+    '<div class="filtro-tit">Estado' + (DEFEITOS.lista.length ? '<button class="defBtn">🔍 Defeito?</button>' : '') + '</div><div class="mDefs"></div><div class="chips mEst" style="margin-top:6px"></div>' +
     '<div class="filtro-tit">Tamanho</div><div class="chips mTam"></div>' +
     '<button class="btn btn-acc mOk" style="margin-top:10px" disabled>Escolhe o tamanho</button>' +
     '<details class="naoInv" style="margin-top:12px"><summary class="link vermelho" style="cursor:pointer">Não entra no stock…</summary>' +
@@ -1754,14 +1781,19 @@ function painelEspera(e) {
     '</details>';
 
   const ok = box.querySelector('.mOk');
-  let estE = e.estado || 'Boa';
+  const EE = ESP_ED[e.idE] || (ESP_ED[e.idE] = { est: e.estado || 'Boa', defs: (e.defeitos || []).slice() });
+  let estE = EE.est;
   const zEst = box.querySelector('.mEst');
-  const bDef = box.querySelector('.defBtn'); if (bDef) bDef.onclick = () => abrirDefeitos(e.tipo, k => { estE = k; pintar(); });
+  const zDef = box.querySelector('.mDefs');
+  const mudarDefs = (l, k) => { EE.defs = l; EE.est = estE = k; desenharDefs(); pintar(); };
+  const desenharDefs = () => { zDef.innerHTML = htmlDefeitosPeca(EE.defs); ligarDefeitosPeca(zDef, e.tipo, EE.defs, mudarDefs); };
+  desenharDefs();
+  const bDef = box.querySelector('.defBtn'); if (bDef) bDef.onclick = () => abrirDefeitos(e.tipo, (k, l) => mudarDefs(l, k), EE.defs);
   const estOk = estadosDe(tipoInfo(e.tipo)).slice();
   if (!estOk.some(x => x.chave === estE)) estOk.push(ESTADOS.find(x => x.chave === estE) || { chave: estE, nome: estE });
   estOk.forEach(x => {
     const b = document.createElement('button'); b.className = 'chip'; b.dataset.k = x.chave; b.textContent = curtoEst(x); b.title = x.nome;
-    b.onclick = () => { estE = x.chave; pintar(); };
+    b.onclick = () => { estE = EE.est = x.chave; pintar(); };
     zEst.appendChild(b);
   });
   const pintar = () => {
@@ -1830,7 +1862,7 @@ function painelEspera(e) {
     bDesc.disabled = true; bDesc.textContent = 'A gravar…';
     try {
       await api('descartar', { idE: e.idE, motivo: final });
-      ESPERA = ESPERA.filter(x => x.idE !== e.idE); espAberta = null;
+      ESPERA = ESPERA.filter(x => x.idE !== e.idE); espAberta = null; PECAS = PECAS.filter(x => x.espera !== e.idE);
       document.getElementById('nEsp').textContent = ESPERA.length ? '(' + ESPERA.length + ')' : '';
       toast('✔ ' + e.tipo + ' retirada da espera (' + final + ')');
       desenharEspera();
@@ -1841,15 +1873,15 @@ function painelEspera(e) {
     ok.disabled = true; ok.textContent = 'A gravar…';
     try {
       if (SEM_STOCK) {
-        await api('arrumar', { idE: e.idE, tamanho: escolhido, estado: estE, cm: (box.querySelector('.mCm') || {}).value || '' });
-        ESPERA = ESPERA.filter(x => x.idE !== e.idE); espAberta = null;
+        await api('arrumar', { idE: e.idE, tamanho: escolhido, estado: estE, cm: (box.querySelector('.mCm') || {}).value || '', defeitos: EE.defs });
+        ESPERA = ESPERA.filter(x => x.idE !== e.idE); espAberta = null; PECAS = PECAS.filter(x => x.espera !== e.idE);
         document.getElementById('nEsp').textContent = ESPERA.length ? '(' + ESPERA.length + ')' : '';
         toast('✔ Guardar em: ' + e.tipo + ' · tam. ' + escolhido + ' (' + nomeEst(estE) + ')');
         desenharEspera(); return;
       }
-      const r = await api('inventariar', { idE: e.idE, tamanho: escolhido, estado: estE, cm: (box.querySelector('.mCm') || {}).value || '' });
+      const r = await api('inventariar', { idE: e.idE, tamanho: escolhido, estado: estE, cm: (box.querySelector('.mCm') || {}).value || '', defeitos: EE.defs });
       atualizarStocks(r.stocks);
-      ESPERA = ESPERA.filter(x => x.idE !== e.idE); espAberta = null;
+      ESPERA = ESPERA.filter(x => x.idE !== e.idE); espAberta = null; PECAS = PECAS.filter(x => x.espera !== e.idE);
       document.getElementById('nEsp').textContent = ESPERA.length ? '(' + ESPERA.length + ')' : '';
       toast('✔ ' + e.tipo + ' ' + escolhido + ' (' + nomeEst(estE) + ') → stock (' + r.codigo + ')');
       desenharEspera();
@@ -2099,7 +2131,7 @@ document.getElementById('filtroMed').addEventListener('input', calcularMedida);
    ===================================================================== */
 const RASCUNHO = 'fardasv1_rascunho', VALIDADE_MS = 2 * 3600 * 1000;
 function temAtendimento() {
-  return Object.keys(CARRO.leva).length + Object.keys(CARRO.entrega).length + Object.keys(CARRO.espera).length + Object.keys(CARRO.semL).length + Object.keys(CARRO.semE).length +
+  return Object.keys(CARRO.leva).length + Object.keys(CARRO.entrega).length + Object.keys(CARRO.espera).length + Object.keys(CARRO.semL).length + Object.keys(CARRO.semE).length + CARRO.saco.length +
     Object.keys(CARRO_LIV.leva).length + Object.keys(CARRO_LIV.entrega).length > 0 || !!TALAO || !!FICHA_ATUAL || !!PEDIDO_ATUAL;
 }
 let PODE_GUARDAR = false;   // fica true depois de recuperar o rascunho ao entrar
@@ -2109,7 +2141,7 @@ function guardarEstado() {
   try {
     if (!temAtendimento()) { localStorage.removeItem(RASCUNHO); return; }
     localStorage.setItem(RASCUNHO, JSON.stringify({
-      v: 2, t: Date.now(), leva: CARRO.leva, entrega: CARRO.entrega, espera: CARRO.espera, semL: CARRO.semL, semE: CARRO.semE, liv: CARRO_LIV, talao: TALAO, ficha: FICHA_ATUAL, pedido: PEDIDO_ATUAL, idPendente
+      v: 2, t: Date.now(), leva: CARRO.leva, entrega: CARRO.entrega, espera: CARRO.espera, semL: CARRO.semL, semE: CARRO.semE, saco: CARRO.saco, liv: CARRO_LIV, talao: TALAO, ficha: FICHA_ATUAL, pedido: PEDIDO_ATUAL, idPendente
     }));
   } catch (e) {}
 }
@@ -2125,7 +2157,7 @@ async function restaurarEstado(ficar) {   // ficar = não mudar de separador (qu
     Object.entries(s.entrega || {}).forEach(([k, q]) => { if (existe(k)) CARRO.entrega[k] = q; });
     Object.assign(CARRO.espera, s.espera || {});
   } else Object.assign(CARRO.espera, s.entrega || {});      // rascunho antigo: as entregas eram todas sem tamanho
-  CARRO.semL = Object.assign({}, s.semL || {}); CARRO.semE = Object.assign({}, s.semE || {});
+  CARRO.semL = Object.assign({}, s.semL || {}); CARRO.semE = Object.assign({}, s.semE || {}); CARRO.saco = Array.isArray(s.saco) ? s.saco : [];
   CARRO_LIV.leva = Object.assign({}, (s.liv || {}).leva || {});
   CARRO_LIV.entrega = Object.assign({}, (s.liv || {}).entrega || {});
   idPendente = s.idPendente || null;
@@ -2271,18 +2303,27 @@ function desenharVerif() {
   const V = VERIF, f = V.f, el = document.createElement('div'); el.className = 'verif';
   el.innerHTML = '<div style="display:flex;gap:8px;align-items:flex-start"><div style="flex:1"><h3>' + esc(f.nome) + ' · ' + esc(f.codigo) + '</h3>' +
     '<div class="meta" style="margin:0">' + esc([f.email, resumoFicha(f)].filter(Boolean).join(' · ')) + '</div></div><button class="tira" title="Fechar">✕</button></div>' +
-    '<p class="meta" style="margin:6px 0 0">Pega em cada peça (vêm dobradas pela ordem da ficha) e confirma-a ou marca “Não aceite”. Corrige o estado ou o tamanho se for preciso.</p>';
+    '<p class="meta" style="margin:6px 0 0">Pega em cada peça da pilha (a de cima tem o nº maior) e confirma-a ou marca “Não aceite”. Corrige o estado ou o tamanho se for preciso.</p>';
   el.querySelector('.tira').onclick = () => { VERIF = null; desenharVerif(); };
-  // agrupado por peça e tamanho declarado
-  const grupos = {};
-  V.pecas.forEach(p => { const k = p.tipo + ' · ' + (p.tamanho ? 'tam. ' + p.tamanho : 'sem tamanho'); (grupos[k] = grupos[k] || []).push(p); });
-  Object.entries(grupos).forEach(([k, ps]) => {
-    el.insertAdjacentHTML('beforeend', '<div class="vgrp">' + esc(k) + ' (' + ps.length + ')</div>');
+  // Vista: pela ordem da ficha (a pilha: maior nº em cima, 1 em baixo) ou agrupada por tipo (também do maior para o menor)
+  const porTipo = lerGuardado('fardasv1_vistaFicha') === 'tipo';
+  const bv = document.createElement('button'); bv.className = 'vistaFicha';
+  bv.textContent = porTipo ? '↕ Pela ordem da ficha' : '▦ Agrupar por tipo';
+  bv.onclick = () => { guardar('fardasv1_vistaFicha', porTipo ? 'ordem' : 'tipo'); desenharVerif(); };
+  el.appendChild(bv);
+  const desc = V.pecas.slice().sort((a, b) => (Number(b.n) || 0) - (Number(a.n) || 0));
+  const grupos = [];
+  if (porTipo) {
+    const m = {};
+    desc.forEach(p => { const k = p.tipo + ' · ' + (p.tamanho ? 'tam. ' + p.tamanho : 'sem tamanho'); if (!m[k]) { m[k] = { k, ps: [] }; grupos.push(m[k]); } m[k].ps.push(p); });
+  } else grupos.push({ k: '', ps: desc });
+  grupos.forEach(({ k, ps }) => {
+    if (k) el.insertAdjacentHTML('beforeend', '<div class="vgrp">' + esc(k) + ' (' + ps.length + ')</div>');
     ps.forEach(p => {
       const t = tipoInfo(p.tipo), tams = tamanhosDoTipo(p.tipo), val = precoTipo(p.tipo, p.est);
       const d = document.createElement('div'); d.className = 'vp' + (p.dec ? ' ' + p.dec : '');
       const okEst = estadosDe(t), declOk = okEst.some(e => e.chave === p.estado);
-      d.innerHTML = '<div class="l1"><b>#' + p.n + '</b><span>' + (p.nota ? 'Nota: “' + esc(p.nota) + '”' : '') + '</span><span class="val">' + (p.dec === 'nao' ? '—' : val != null ? eur(val) : '⚠ sem preço') + '</span></div>' +
+      d.innerHTML = '<div class="l1"><b>#' + p.n + '</b><span>' + (porTipo ? '' : '<b>' + esc(p.tipo) + '</b>' + (p.tamanho ? ' · tam. ' + esc(p.tamanho) : '') + (p.nota ? '<br>' : '')) + (p.nota ? 'Nota: “' + esc(p.nota) + '”' : '') + '</span><span class="val">' + (p.dec === 'nao' ? '—' : val != null ? eur(val) : '⚠ sem preço') + '</span></div>' +
         '<div class="resp">' + respostaPeca(p, declOk) + '</div>' +
         '<div class="l2"><select class="vEst" title="Só aparecem os estados que aceitamos nesta peça">' + okEst.map(e => '<option value="' + esc(e.chave) + '"' + (e.chave === p.est ? ' selected' : '') + '>' + esc(e.nome) + (e.chave === p.estado ? ' ← respondeu' : '') + '</option>').join('') + '</select>' +
           '<select class="vTam"><option value="">s/ tam. (espera)</option>' + tams.map(z => '<option' + (z === p.tam ? ' selected' : '') + '>' + esc(z) + '</option>').join('') + '</select></div>' +
@@ -2330,7 +2371,10 @@ function passarFichaParaCarro() {
     n++;
   });
   Object.entries(V.livros).forEach(([sub, q]) => { if (q > 0) CARRO_LIV.entrega[sub] = (CARRO_LIV.entrega[sub] || 0) + q; });
-  FICHA_ATUAL = { codigo: V.f.codigo, nome: V.f.nome, recusadas };
+  // Nº e defeitos de cada peça da ficha: no fim do atendimento vão para o Arrumar/Espera com o mesmo nº
+  const aceites = V.pecas.filter(p => p.dec !== 'nao').map(p => ({ n: Number(p.n) || 0, tipo: p.tipo, est: p.est, tam: p.tam || '',
+    defs: (p.det || (p.defeitos || []).map(t => ({ t }))).map(x => x.t).filter(Boolean) }));
+  FICHA_ATUAL = { codigo: V.f.codigo, nome: V.f.nome, recusadas, pecas: aceites, max: V.pecas.reduce((m, p) => Math.max(m, Number(p.n) || 0), 0) };
   VERIF = null; idPendente = null;
   desenharVerif(); desenharAt();
   toast('⬇ ' + n + (n === 1 ? ' peça' : ' peças') + ' da ficha ' + FICHA_ATUAL.codigo + ' no carrinho' + (recusadas.length ? ' · ' + recusadas.length + ' não aceite(s)' : ''));
@@ -2652,7 +2696,7 @@ function desenharSemCarro(dir) {
     li.querySelector('.estSel').onchange = e => mudarEstadoSem(dir, k, e.target.value);
     li.querySelectorAll('.mini button').forEach(b => b.onclick = () => juntarSem(dir, sub, tam, est, +b.dataset.d));
     li.querySelector('.tira').onclick = () => juntarSem(dir, sub, tam, est, -q);
-    if (dir === 'leva') botaoSaco(li, sub, tam);
+    if (dir === 'leva') { etiquetasSaco(li, sub, tam); if (ligadasSaco(sub, tam) < qtdSaidas(sub, tam)) botaoSaco(li, sub, tam); }
     ul.appendChild(li);
   });
 }
@@ -2688,12 +2732,13 @@ function linhasSem() {
    Depois de arrumada desaparece da app (fica registada na folha "Peças").
    ===================================================================== */
 let PECAS = [], SACO_ABERTO = null, INVERTER = false, PECA_ED = null, EDS = {};   // EDS[id] = { tam, est } escolhidos no cartão
-const edDe = p => EDS[p.id] || (EDS[p.id] = { tam: p.sit === 'Na Espera' ? '' : p.tam, est: p.estado });
+const edDe = p => EDS[p.id] || (EDS[p.id] = { tam: p.sit === 'Na Espera' ? '' : p.tam, est: p.estado, defs: (p.defeitos || []).slice(), defsMudou: false });
 
-async function carregarPecas() {
+async function carregarPecas(forcar) {
   const el = document.getElementById('listaPecas');
+  if (ARR_T && forcar !== true) { desenharPecas(); if (await carregarArrumacao(true) && TAB_ATUAL === 'arr') desenharPecas(); return; }
   if (TAB_ATUAL === 'arr') el.innerHTML = '<p class="meta">A carregar…</p>';
-  try { PECAS = (await api('pecas')).pecas || []; } catch (e) { if (TAB_ATUAL === 'arr') el.innerHTML = '<p class="erro">Erro: ' + esc(e.message) + '</p>'; return; }
+  if (await carregarArrumacao() === false && TAB_ATUAL === 'arr') { el.innerHTML = '<p class="erro">Não foi possível carregar.</p>'; return; }
   desenharPecas();
 }
 // Carrega em segundo plano (para as sugestões nas saídas), sem mostrar nada
@@ -2754,11 +2799,12 @@ function cartaoPeca(p, primeira) {
   const semTam = p.sit === 'Na Espera';
   const ed = PECA_ED === p.id || semTam;
   const E = edDe(p);
-  const tam = ed ? E.tam : p.tam, est = ed ? E.est : p.estado;
+  const tam = ed ? E.tam : p.tam, est = ed || E.defsMudou ? E.est : p.estado;
   let h = '<div class="cartaoP' + (primeira ? ' primeira' : '') + '" data-id="' + esc(p.id) + '">' +
     '<div class="cpTopo"><span class="cpN">#' + p.n + '</span><span class="cpNm">' + esc(p.tipo) + '</span>' +
     '<span class="cpTam">' + (tam ? 'tam. ' + esc(tam) : '📏 medir') + '</span></div>' +
-    '<div class="cpEst">' + esc(bolaEst(est)) + ' <small>' + esc(estadoP(est).nome.replace(/^.*·\s*/, '')) + '</small></div>';
+    '<div class="cpEst">' + esc(bolaEst(est)) + ' <small>' + esc(estadoP(est).nome.replace(/^.*·\s*/, '')) + '</small></div>' +
+    htmlDefeitosPeca(E.defs);
   if (ed) {
     const tams = typeof tamsDoTipoSem === 'function' ? tamsDoTipoSem(p.tipo) : [];
     const t = tipoInfo(p.tipo), ests = t ? estadosDe(t) : ESTADOS, tMed = tipoMedidaPara(p.tipo);
@@ -2804,7 +2850,9 @@ function ligarCartoes() {
     const E = edDe(p);
     c.querySelectorAll('[data-tam]').forEach(b => b.onclick = () => { E.tam = b.dataset.tam; desenharPecas(); });
     c.querySelectorAll('[data-est]').forEach(b => b.onclick = () => { E.est = b.dataset.est; desenharPecas(); });
-    const bd = c.querySelector('.defBtn'); if (bd) bd.onclick = () => abrirDefeitos(p.tipo, k => { E.est = k; desenharPecas(); });
+    const mudarDefs = (l, k) => { E.defs = l; E.est = k; E.defsMudou = true; desenharPecas(); };
+    const bd = c.querySelector('.defBtn'); if (bd) bd.onclick = () => abrirDefeitos(p.tipo, (k, l) => mudarDefs(l, k), E.defs);
+    ligarDefeitosPeca(c, p.tipo, E.defs, mudarDefs);
     c.querySelectorAll('[data-marca]').forEach(b => b.onclick = () => { E.marca = b.dataset.marca; aplicarMedida(c, p, E); desenharPecas(); });
     c.querySelectorAll('[data-tmed]').forEach(b => b.onclick = () => { E.tab = b.dataset.tmed; E.marca = null; tabelaDoCartao(p, E); aplicarMedida(c, p, E); desenharPecas(); });
     const cm = c.querySelector('.cpCm');
@@ -2814,12 +2862,13 @@ function ligarCartoes() {
     if (be) be.onclick = () => { PECA_ED = PECA_ED === p.id ? null : p.id; delete EDS[p.id]; desenharPecas(); };
     c.querySelector('.btnArr').onclick = () => {
       const ed = PECA_ED === p.id || semTam;
-      const tam = ed ? E.tam : p.tam, est = ed ? E.est : p.estado;
+      const tam = ed ? E.tam : p.tam, est = ed || E.defsMudou ? E.est : p.estado;
       if (semTam) {
         if (!tam) { toast('Escolhe ou mede o tamanho.'); return; }
-        gravarPeca(p, 'arrumar', { idE: p.espera, tamanho: tam, estado: est, cm: E.cm || '' }, '✔ ' + p.tipo + ' tam. ' + tam + ' · ' + bolaEst(est));
+        gravarPeca(p, 'arrumar', { idE: p.espera, tamanho: tam, estado: est, cm: E.cm || '', defeitos: E.defs }, '✔ ' + p.tipo + ' tam. ' + tam + ' · ' + bolaEst(est));
       } else {
         const d = { ids: [p.id], situacao: 'Arrumada' };
+        if (E.defsMudou) d.defeitos = E.defs;
         if (ed && E.cm) d.cm = E.cm;   // a medida escrita fica na folha Peças (para completar a folha Medidas)
         if (tam && tam !== p.tam) d.tamanho = tam;
         if (est && est !== p.estado) d.estado = est;
@@ -2849,31 +2898,58 @@ function aplicarMedida(c, p, E) {
 /* ---------- Sugestão nas saídas: "esta peça vem de um saco por arrumar?" ---------- */
 function sugestaoSaco(tipo, tam) {
   if (typeof AJ !== 'undefined' && !AJ.sacos) return null;
-  const cand = PECAS.filter(p => p.tipo === tipo && (!tam || p.tam === tam || p.sit === 'Na Espera'));
+  const ja = CARRO.saco.map(x => x.id);
+  const cand = PECAS.filter(p => p.tipo === tipo && !ja.includes(p.id) && (!tam || p.tam === tam || p.sit === 'Na Espera'));
   if (!cand.length) return null;
   const li = document.createElement('li'); li.className = 'sugSaco';
-  li.innerHTML = '<div class="meta" style="margin:0 0 6px">Esta peça vem de um saco por arrumar? Toca para a tirar da lista de arrumar:</div>' +
+  li.innerHTML = '<div class="meta" style="margin:0 0 6px">Esta peça vem de um saco por arrumar? Toca nela (sai da lista de arrumar quando confirmares o atendimento):</div>' +
     cand.slice(0, 8).map(p => '<button class="mini2" data-sug="' + esc(p.id) + '">📦 ' + esc(p.saco) + ' #' + p.n + ' · ' + esc(p.tam || 's/ tam.') + ' · ' + esc(bolaEst(p.estado)) + '</button>').join(' ');
-  li.querySelectorAll('[data-sug]').forEach(b => b.onclick = async () => {
+  li.querySelectorAll('[data-sug]').forEach(b => b.onclick = () => {
     const p = PECAS.find(x => x.id === b.dataset.sug); if (!p) return;
-    b.disabled = true;
-    try {
-      const d = { ids: [p.id], situacao: 'Saiu antes de arrumar', nota: 'levada num atendimento' };
-      if (tam && !p.tam) d.tamanho = tam;            // peça registada sem tamanho: fica com o tamanho escolhido na saída
-      const r = await api('pecas', d);
-      PECAS = r.pecas || PECAS.filter(x => x.id !== p.id);
-      toast('↗ ' + p.saco + ' #' + p.n + ' saiu da lista de arrumar');
-      li.remove();
-    } catch (e) { b.disabled = false; toast('Erro: ' + e.message); }
+    // fica só ligada a esta saída; a peça sai do Arrumar/Espera quando o atendimento for confirmado
+    CARRO.saco.push({ id: p.id, saco: p.saco, n: p.n, tipo, tam: tam || p.tam || '', tamP: p.tam || '', estado: p.estado });
+    if (qtdSaidas(tipo, tam || p.tam || '') < ligadasSaco(tipo, tam || p.tam || '')) juntarSaidaSaco(tipo, tam || p.tam || '', p.estado);
+    li.remove(); idPendente = null; desenharAt(); guardarEstado();
+    toast('📦 ' + p.saco + ' #' + p.n + ' ligada a esta saída — sai do Arrumar quando confirmares');
   });
   return li;
+}
+// Quantas peças deste tipo/tamanho estão nas saídas · quantas estão ligadas a sacos
+function qtdSaidas(tipo, tam) {
+  let n = 0;
+  Object.entries(CARRO.leva).forEach(([k, q]) => { const [id] = partes(k), a = art(id); if (a && a.subcategoria === tipo && (!tam || a.tamanho === tam)) n += q; });
+  Object.entries(CARRO.semL || {}).forEach(([k, q]) => { const [sub, tm] = partesS(k); if (sub === tipo && (tm || '') === (tam || '')) n += q; });
+  return n;
+}
+const ligadasSaco = (tipo, tam) => CARRO.saco.filter(x => x.tipo === tipo && (x.tam || '') === (tam || '')).length;
+function juntarSaidaSaco(tipo, tam, est) {
+  if (SEM_STOCK) { const k = chaveS(tipo, tam, est); CARRO.semL[k] = (CARRO.semL[k] || 0) + 1; return; }
+  const a = ARTIGOS.find(x => x.subcategoria === tipo && x.tamanho === tam); if (!a) return;
+  const k = chaveC(a.id, est); CARRO.leva[k] = (CARRO.leva[k] || 0) + 1;
+}
+// Se tirarem peças das saídas, as ligações a sacos a mais caem (a peça fica no saco)
+function podarSaco() {
+  const conta = {};
+  CARRO.saco = CARRO.saco.filter(x => { const k = x.tipo + '|' + (x.tam || ''); conta[k] = (conta[k] || 0) + 1; return conta[k] <= qtdSaidas(x.tipo, x.tam || ''); });
+}
+// Etiquetas "📦 F-1234 #3 ✕" na linha do carrinho
+function etiquetasSaco(li, tipo, tam) {
+  const ls = CARRO.saco.filter(x => x.tipo === tipo && (x.tam || '') === (tam || ''));
+  if (!ls.length) return;
+  const d = document.createElement('div');
+  ls.forEach(x => {
+    const s = document.createElement('span'); s.className = 'sacoTag'; s.innerHTML = '📦 ' + esc(x.saco) + ' #' + x.n + '<button title="Afinal não vem deste saco">✕</button>';
+    s.querySelector('button').onclick = () => { CARRO.saco = CARRO.saco.filter(y => y !== x); desenharAt(); guardarEstado(); };
+    d.appendChild(s);
+  });
+  li.appendChild(d);
 }
 
 // Linha do carrinho (Saídas) com peças iguais em sacos por arrumar: botão 📦? abre a mesma escolha da pesquisa
 function botaoSaco(li, tipo, tam) {
   try {
     if (!AJ.sacos) return;
-    if (!PECAS.some(p => p.tipo === tipo && (!tam || p.tam === tam || p.sit === 'Na Espera'))) return;
+    if (!PECAS.some(p => p.tipo === tipo && !CARRO.saco.some(x => x.id === p.id) && (!tam || p.tam === tam || p.sit === 'Na Espera'))) return;
   } catch (e) { return; }
   const b = document.createElement('button'); b.className = 'sacoQ'; b.title = 'Esta peça vem de um saco por arrumar?'; b.textContent = '📦?';
   li.querySelector('.r1').insertBefore(b, li.querySelector('.tira'));
@@ -2894,7 +2970,7 @@ function mostrarSaco(cod) {
   d.classList.remove('hidden');
   d.querySelector('button').onclick = () => d.classList.add('hidden');
 }
-document.getElementById('btnPecasAtual').onclick = carregarPecas;
+document.getElementById('btnPecasAtual').onclick = () => carregarPecas(true);
 
 /* =====================================================================
    🛍 PEDIDOS DOS PAIS (P-####)   — tudo o que é dos pedidos está marcado com PEDIDOS
@@ -3135,8 +3211,26 @@ function defeitosDoTipo(tipo) {
   return L.filter(d => !(info.ocultos || []).includes(d.texto)).map(d => Object.assign({ recusa: (info.recusa || []).includes(d.texto) }, d));
 }
 const ordemEst = k => ESTADOS.findIndex(e => e.chave === k);
-function abrirDefeitos(tipo, aoEscolher) {
+// Estado que resulta dos defeitos (o pior); sem defeitos → C0
+function estDeDefeitos(defs) {
+  let k = null;
+  (defs || []).forEach(t => { const d = (DEFEITOS.lista || []).find(x => semAcentos(x.texto) === semAcentos(t)); if (d && (k === null || ordemEst(d.estado) > ordemEst(k))) k = d.estado; });
+  return k || chaveC0();
+}
+// Etiquetas dos defeitos de uma peça ("Borbotos ✕") + "+ defeito"; ao mudar: aoMudar(defs, estado)
+function htmlDefeitosPeca(defs) {
+  return '<div class="defChips">' + (defs || []).map((t, i) => '<span class="defChip">' + esc(t) + '<button data-tirdef="' + i + '" title="Tirar">✕</button></span>').join('') +
+    (DEFEITOS.lista.length ? '<button class="defMais">+ defeito</button>' : '') + (!(defs || []).length && !DEFEITOS.lista.length ? '<span class="meta">sem defeitos</span>' : '') + '</div>';
+}
+function ligarDefeitosPeca(el, tipo, defs, aoMudar) {
+  el.querySelectorAll('[data-tirdef]').forEach(b => b.onclick = () => { const l = defs.slice(); l.splice(+b.dataset.tirdef, 1); aoMudar(l, estDeDefeitos(l)); });
+  const m = el.querySelector('.defMais'); if (m) m.onclick = () => abrirDefeitos(tipo, (k, l) => aoMudar(l, k), defs);
+}
+function abrirDefeitos(tipo, aoEscolher, inicial) {
   const lista = defeitosDoTipo(tipo), marcados = new Set();
+  const outros = [];   // defeitos que a peça já tem mas não estão na lista desta peça (ficam)
+  (inicial || []).forEach(t => { const d = lista.find(x => semAcentos(x.texto) === semAcentos(t)); if (d) marcados.add(d.texto); else outros.push(t); });
+  const tinha = (inicial || []).length > 0;
   const fundo = document.createElement('div'); fundo.className = 'defFundo';
   fundo.innerHTML = '<div class="defCaixa"><div class="defTopo"><b>🔍 Defeito? · ' + esc(tipo) + '</b><button class="mini2 defX">✕</button></div>' +
     '<input type="search" class="defQ" placeholder="Procurar (ex.: borbotos, mancha, fecho)" autocomplete="off">' +
@@ -3170,11 +3264,14 @@ function abrirDefeitos(tipo, aoEscolher) {
     const permitido = !k || estadosDe(tipoInfo(tipo)).some(e => e.chave === k);
     res.innerHTML = !marcados.size ? 'Toca no(s) defeito(s).' : (rec.length ? '⚠ <b>Não se aceita nesta peça:</b> ' + rec.map(d => esc(d.texto)).join(', ') + '<br>' : '') +
       (k ? 'Estado: <b>' + esc(nomeEst(k)) + '</b>' + (permitido ? '' : '<br>⚠ Este estado não está ligado para esta peça (folha Tipos).') : '');
-    ok.disabled = !k || !permitido;
-    ok.textContent = k ? 'Usar ' + curtoEst(ESTADOS.find(x => x.chave === k) || { nome: k }) : 'Escolhe';
+    ok.disabled = k ? !permitido : !tinha;
+    ok.textContent = k ? 'Usar ' + curtoEst(ESTADOS.find(x => x.chave === k) || { nome: k }) : tinha ? 'Sem defeitos' : 'Escolhe';
   };
   q.oninput = desenhar;
-  ok.onclick = () => { const k = pior(); fechar(); if (k) aoEscolher(k); };
+  ok.onclick = () => {
+    const defs = outros.concat(lista.filter(d => marcados.has(d.texto)).map(d => d.texto));
+    fechar(); aoEscolher(pior() || estDeDefeitos(outros), defs);
+  };
   fundo.querySelector('.defImp').onclick = imprimirCartaoDefeitos;
   desenhar();
   setTimeout(() => q.focus(), 50);

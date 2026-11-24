@@ -262,6 +262,9 @@
   .bloco.liv.fechado .bloco-tit::after { transform:rotate(-90deg); }
   .bloco.liv.fechado ul { display:none; }
   /* 💶 MODO DE PREÇOS */
+  /* ⏳ FILA */
+  #filaInd { position:fixed; top:6px; left:50%; transform:translateX(-50%); z-index:9500; background:#1f2a2e; color:#fff; font-size:.75rem; font-weight:600; padding:3px 10px; border-radius:999px; box-shadow:0 2px 8px rgba(0,0,0,.2); pointer-events:none; }
+  #filaInd.parada { background:#a3402e; }
   #btnModoP { position:relative; } #btnModoP sup { position:absolute; right:2px; bottom:0; font-size:.62rem; font-weight:800; background:#6b3f69; color:#fff; border-radius:999px; min-width:14px; line-height:14px; text-align:center; }
   #btnModoP.m1 sup { background:#2e8b57; }
   body.aj-sem-modop #btnModoP { display:none !important; }
@@ -647,7 +650,7 @@ async function api_(acao, dados, extra) {
       : /autoriza|authoriz|permission|permiss/i.test(txt) ? 'O script ainda não está autorizado: corre o configurar no editor e aceita as permissões.'
       : 'O servidor não respondeu com dados (' + resp.status + '). Confirma o link /exec e faz Nova versão da implementação.');
   }
-  if (!j.ok) throw new Error(j.erro || 'Erro desconhecido');
+  if (!j.ok) { const er = new Error(j.erro || 'Erro desconhecido'); er.servidor = true; throw er; }   // recusado pelo servidor (≠ falta de rede)
   return j;
 }
 
@@ -702,6 +705,7 @@ async function entrar(automatico) {
     if (window.MOLDURA_AVISAR) window.MOLDURA_AVISAR();   // MOLDURA: passa a palavra-passe aos Manuais
     carregarPecasFundo();
     if (pedLigado()) carregarPedidos(true);   // PEDIDOS: contador no separador
+    pintarFila(); processarFila();   // ⏳ o que ficou por gravar
   } catch (e) {
     const pwErrada = /palavra-passe/i.test(e.message || '');
     if (pwErrada) guardar('fardasv1_pw', '');      // só esquece a palavra-passe se estiver mesmo errada
@@ -1057,19 +1061,14 @@ async function movimentar(sinal) {
   if (sinal > 0 && !estadosDe(atual).some(e => e.chave === estSel)) { toast('Este estado não se aplica a esta peça (folha Tipos). Só dá para dar saída.'); return; }
   const noEstado = atual.est[estSel] || 0;
   if (sinal < 0 && qtd > noEstado) { toast('Só há ' + noEstado + ' em "' + nomeEst(estSel) + '".'); return; }
-  const botoes = [document.getElementById('btnEnt'), document.getElementById('btnSai')];
-  botoes.forEach(b => b.disabled = true);
-  try {
-    const r = await api('mover', { id: atual.id, delta: sinal * qtd, motivo, estado: estSel });
-    if (r.stocks) atualizarStocks(r.stocks); else { atual.stock = r.stock; atual.est = { Boa: r.stock }; normalizarArtigo(atual); }
-    desenharEstadosFicha();
-    filtrar();
-    toast('✔ ' + (sinal > 0 ? '+' : '−') + qtd + ' · ' + nomeArtigo(atual) + ' ' + atual.tamanho + ' (' + nomeEst(estSel) + ') → stock ' + atual.stock);
-  } catch (e) {
-    toast('Erro: ' + e.message);
-  } finally {
-    botoes.forEach(b => b.disabled = false);
-  }
+  // ⏳ muda logo no ecrã; grava em segundo plano
+  const delta = sinal * qtd;
+  atual.est[estSel] = (atual.est[estSel] || 0) + delta; normalizarArtigo(atual);
+  porNaFila('mover', 'mover', { id: atual.id, delta, motivo, estado: estSel },
+    { rotulo: (sinal > 0 ? '+' : '−') + qtd + ' ' + nomeArtigo(atual) + ' ' + atual.tamanho });
+  desenharEstadosFicha();
+  filtrar();
+  toast('✔ ' + (sinal > 0 ? '+' : '−') + qtd + ' · ' + nomeArtigo(atual) + ' ' + atual.tamanho + ' (' + nomeEst(estSel) + ') → stock ' + atual.stock);
 }
 
 /* =====================================================================
@@ -1864,33 +1863,16 @@ function painelEspera(e) {
     const final = motivoD === 'Outro' ? outro.value.trim() : motivoD;
     if (!confirm('Esta peça (' + e.tipo + ', ' + nomeEst(e.estado) + ') não vai entrar no stock.\nMotivo: ' + final +
       '\n\nO crédito dado no atendimento não muda.')) return;
-    bDesc.disabled = true; bDesc.textContent = 'A gravar…';
-    try {
-      await api('descartar', { idE: e.idE, motivo: final });
-      ESPERA = ESPERA.filter(x => x.idE !== e.idE); espAberta = null; PECAS = PECAS.filter(x => x.espera !== e.idE);
-      document.getElementById('nEsp').textContent = ESPERA.length ? '(' + ESPERA.length + ')' : '';
-      toast('✔ ' + e.tipo + ' retirada da espera (' + final + ')');
-      desenharEspera();
-    } catch (err) { toast('Erro: ' + err.message); pintarMot(); }
+    esperaParaFila(e, 'descartar', { idE: e.idE, motivo: final }, '✔ ' + e.tipo + ' retirada da espera (' + final + ')');
   };
 
-  ok.onclick = async () => {
-    ok.disabled = true; ok.textContent = 'A gravar…';
-    try {
-      if (SEM_STOCK) {
-        await api('arrumar', { idE: e.idE, tamanho: escolhido, estado: estE, cm: (box.querySelector('.mCm') || {}).value || '', defeitos: EE.defs });
-        ESPERA = ESPERA.filter(x => x.idE !== e.idE); espAberta = null; PECAS = PECAS.filter(x => x.espera !== e.idE);
-        document.getElementById('nEsp').textContent = ESPERA.length ? '(' + ESPERA.length + ')' : '';
-        toast('✔ Guardar em: ' + e.tipo + ' · tam. ' + escolhido + ' (' + nomeEst(estE) + ')');
-        desenharEspera(); return;
-      }
-      const r = await api('inventariar', { idE: e.idE, tamanho: escolhido, estado: estE, cm: (box.querySelector('.mCm') || {}).value || '', defeitos: EE.defs });
-      atualizarStocks(r.stocks);
-      ESPERA = ESPERA.filter(x => x.idE !== e.idE); espAberta = null; PECAS = PECAS.filter(x => x.espera !== e.idE);
-      document.getElementById('nEsp').textContent = ESPERA.length ? '(' + ESPERA.length + ')' : '';
-      toast('✔ ' + e.tipo + ' ' + escolhido + ' (' + nomeEst(estE) + ') → stock (' + r.codigo + ')');
-      desenharEspera();
-    } catch (err) { toast('Erro: ' + err.message); pintar(); }
+  ok.onclick = () => {
+    const dados = { idE: e.idE, tamanho: escolhido, estado: estE, cm: (box.querySelector('.mCm') || {}).value || '', defeitos: EE.defs };
+    if (SEM_STOCK) { esperaParaFila(e, 'arrumar', dados, '✔ Guardar em: ' + e.tipo + ' · tam. ' + escolhido + ' (' + nomeEst(estE) + ')'); return; }
+    // com stock: o número sobe logo no ecrã (o servidor confirma depois)
+    const a = ARTIGOS.find(x => x.subcategoria === e.tipo && x.tamanho === escolhido);
+    if (a) { a.est[estE] = (a.est[estE] || 0) + 1; normalizarArtigo(a); }
+    esperaParaFila(e, 'inventariar', dados, '✔ ' + e.tipo + ' ' + escolhido + ' (' + nomeEst(estE) + ') → stock', { artId: a ? a.id : '' });
   };
   return box;
 }
@@ -2076,7 +2058,8 @@ function tabelaImp(g, tituloBloco) {
   const temObs = g.linhas.some(m => m.obs);
   return '<div class="med">' + (partes.length ? '<div class="tit"><b>' + esc(partes[0]) + '</b>' + (partes[1] ? ' <span>· ' + esc(partes[1]) + '</span>' : '') + '</div>' : '') +
     (g.nota ? '<div class="nota">📐 ' + esc(g.nota) + '</div>' : '') +
-    '<table><tr><th>Tam.</th><th>De</th><th>Até</th>' + (temObs ? '<th>Obs.</th>' : '') + '</tr>' +
+    // ]De = não inclui · Até] = inclui (nos Bibes fica "De" / "Até")
+    '<table><tr><th>Tam.</th>' + (/\bbibes?\b/.test(semAcentos(g.tipos)) ? '<th>De</th><th>Até</th>' : '<th>]De</th><th>Até]</th>') + (temObs ? '<th>Obs.</th>' : '') + '</tr>' +
     g.linhas.map(m => '<tr><td class="t">' + esc(m.tamanho) + '</td><td class="n">' + cm(m.de) + '</td><td class="n">' + cm(m.ate) + '</td>' +
       (temObs ? '<td class="o">' + esc(m.obs || '') + '</td>' : '') + '</tr>').join('') + '</table></div>';
 }
@@ -2121,9 +2104,11 @@ document.getElementById('btnTabelasPag').onclick = () => {
     'table{border-collapse:collapse}th,td{border:1px solid #ccc;padding:2px 7px;text-align:left}th{background:#f3f3f3;font-weight:600}' +
     'td.n{text-align:right;white-space:nowrap}td.t{font-weight:700}td.o{font-size:11px;max-width:14em;overflow-wrap:anywhere}' +
     '.btn{padding:8px 14px;border:0;border-radius:8px;background:#1f6f5c;color:#fff;font-size:1rem;margin-bottom:6px}' +
+    '.rodape{font-size:10.5px;color:#555;margin-top:10px;border-top:1px solid #ccc;padding-top:4px}' +
     '@media print{.btn{display:none}body{margin:0}@page{size:A4;margin:10mm}}' +
     '</style></head><body>' +
-    '<h1>📏 Tabelas de medidas · Banco de Fardas</h1><button class="btn" onclick="print()">🖨 Imprimir</button>' + htmlTabelasImpressao() + '</body></html>');
+    '<h1>📏 Tabelas de medidas · Banco de Fardas</h1><button class="btn" onclick="print()">🖨 Imprimir</button>' + htmlTabelasImpressao() +
+    '<div class="rodape"><b>]De</b> — o valor <b>não</b> está incluído (ex.: ]40 a 45] = mais de 40 cm até 45 cm). <b>Até]</b> — o valor <b>está</b> incluído. Exceções: nos Bibes, no primeiro tamanho de cada tabela e quando há um salto entre o “Até” de um tamanho e o “De” do seguinte, o “De” também inclui o valor.</div></body></html>');
   w.document.close();
 };
 document.getElementById('filtroMed').addEventListener('input', calcularMedida);
@@ -2750,16 +2735,11 @@ async function carregarPecas(forcar) {
 function carregarPecasFundo() { api('pecas').then(r => { PECAS = r.pecas || []; if (TAB_ATUAL === 'arr') desenharPecas(); if (TAB_ATUAL === 'sai') desenharAt(); /* botões 📦? */ }).catch(() => {}); }
 
 async function gravarPeca(p, acao, dados, msg) {
-  const antes = PECAS.slice();
-  PECAS = PECAS.filter(x => x.id !== p.id);          // sai logo do ecrã
-  PECA_ED = null; desenharPecas();
-  try {
-    const r = await api(acao, dados);
-    if (r.pecas) PECAS = r.pecas;
-    if (acao === 'arrumar') { ESPERA = (ESPERA || []).filter(x => x.idE !== p.espera); const n = document.getElementById('nEsp'); if (n) n.textContent = ESPERA.length ? '(' + ESPERA.length + ')' : ''; }
-    if (msg) toast(msg);
-    desenharPecas();
-  } catch (e) { PECAS = antes; desenharPecas(); toast('Erro: ' + e.message); }
+  PECAS = PECAS.filter(x => x.id !== p.id);          // sai logo do ecrã; grava em segundo plano (⏳)
+  PECA_ED = null; delete EDS[p.id]; desenharPecas();
+  if (acao === 'arrumar') { ESPERA = (ESPERA || []).filter(x => x.idE !== p.espera); const n = document.getElementById('nEsp'); if (n) n.textContent = ESPERA.length ? '(' + ESPERA.length + ')' : ''; }
+  porNaFila('peca', acao, dados, { peca: p, rotulo: p.tipo + ' #' + p.n });
+  if (msg) toast(msg);
 }
 
 const estadoP = k => ESTADOS.find(x => x.chave === k) || { chave: k, nome: k };
@@ -3313,6 +3293,96 @@ function pintarLivrosAbertos() {
 /* /MODO · DEFEITOS · LIVROS */
 
 /* =====================================================================
+   ⏳ FILA — gravações em segundo plano (Inventário +/−, Arrumar, Espera)
+   O ecrã muda logo; o pedido vai por trás, pela ordem. A fila fica guardada no aparelho
+   (sem rede ou com a app fechada, segue mais tarde). Cada pedido leva um "op" único: o servidor
+   não o aplica duas vezes. Se o servidor recusar, desfaz-se no ecrã e aparece o aviso.
+   ===================================================================== */
+const FILA_K = 'fardasv1_fila';
+let FILA = (() => { try { return JSON.parse(localStorage.getItem(FILA_K) || '[]'); } catch (e) { return []; } })();
+let FILA_ATIVA = false, FILA_T = null, FILA_PARADA = '';
+const FILA_FEITO = {}, FILA_FALHOU = {};   // o que fazer quando cada tipo de pedido acaba (por "tipo" do item)
+function guardarFila() { try { localStorage.setItem(FILA_K, JSON.stringify(FILA)); } catch (e) {} }
+function pintarFila() {
+  const el = document.getElementById('filaInd'); if (!el) return;
+  const n = FILA.length;
+  el.classList.toggle('hidden', !n);
+  el.classList.toggle('parada', !!FILA_PARADA);
+  el.textContent = !n ? '' : FILA_PARADA ? '⚠ ' + n + ' por guardar' : '⏳ ' + n + ' por guardar';
+  el.title = FILA_PARADA || 'A gravar em segundo plano';
+}
+// tipo: nome do "depois" (FILA_FEITO/FILA_FALHOU); info: o que for preciso para atualizar ou desfazer o ecrã
+function porNaFila(tipo, acao, dados, info) {
+  FILA.push({ op: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), tipo, acao, dados, info: info || {} });
+  guardarFila(); pintarFila(); processarFila();
+}
+const filaTem = (fn) => FILA.some(fn);
+async function processarFila() {
+  if (FILA_ATIVA || !FILA.length) return;
+  if (!SESSAO || !SESSAO.pw) return;                       // ainda não entrou: segue quando entrar
+  FILA_ATIVA = true; clearTimeout(FILA_T);
+  try {
+    while (FILA.length) {
+      const it = FILA[0];
+      try {
+        const r = await api(it.acao, Object.assign({ op: it.op }, it.dados), null, { silencioso: true });
+        FILA.shift(); guardarFila(); FILA_PARADA = ''; pintarFila();
+        try { if (!r.repetido && FILA_FEITO[it.tipo]) FILA_FEITO[it.tipo](it, r); } catch (e) {}
+      } catch (e) {
+        if (e.servidor && !/palavra-passe/i.test(e.message)) {          // recusado: desfaz e avisa
+          FILA.shift(); guardarFila(); pintarFila();
+          try { if (FILA_FALHOU[it.tipo]) FILA_FALHOU[it.tipo](it, e); } catch (e2) {}
+          toast('✕ Não gravado: ' + (it.info.rotulo || it.acao) + ' — ' + e.message);
+          continue;
+        }
+        // sem rede / servidor ocupado / palavra-passe: tenta outra vez daqui a pouco
+        FILA_PARADA = /palavra-passe/i.test(e.message) ? 'Palavra-passe: entra outra vez na app' : 'Sem ligação: volta a tentar sozinho';
+        pintarFila();
+        FILA_T = setTimeout(processarFila, 15000);
+        break;
+      }
+    }
+  } finally { FILA_ATIVA = false; }
+}
+window.addEventListener('online', () => processarFila());
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') processarFila(); });
+window.addEventListener('beforeunload', e => { if (FILA.length) { e.preventDefault(); e.returnValue = ''; } });   // avisa antes de fechar o separador
+
+// --- Inventário +/− ---
+FILA_FEITO.mover = (it, r) => {
+  // só usa o stock do servidor se não houver mais movimentos desta peça à espera (senão o número "andava para trás")
+  if (r.stocks && !filaTem(x => x.tipo === 'mover' && x.dados.id === it.dados.id)) { atualizarStocks(r.stocks); if (atual && atual.id === it.dados.id) desenharEstadosFicha(); filtrar(); }
+};
+FILA_FALHOU.mover = (it) => {
+  const a = art(it.dados.id); if (!a) return;
+  a.est[it.dados.estado] = (a.est[it.dados.estado] || 0) - it.dados.delta; normalizarArtigo(a);
+  if (atual && atual.id === a.id) desenharEstadosFicha(); filtrar();
+};
+// --- Arrumar ---
+FILA_FEITO.peca = (it, r) => {
+  if (r.pecas && !filaTem(x => x.tipo === 'peca' || x.tipo === 'espera')) { PECAS = r.pecas; if (TAB_ATUAL === 'arr') desenharPecas(); }
+};
+FILA_FALHOU.peca = (it) => { const p = it.info.peca; if (p && !PECAS.some(x => x.id === p.id)) { PECAS.push(p); if (TAB_ATUAL === 'arr') desenharPecas(); } };
+// --- Espera ---
+FILA_FEITO.espera = (it, r) => { if (r.stocks) atualizarStocks(r.stocks); };
+FILA_FALHOU.espera = (it) => {
+  if (it.info.artId) { const a = art(it.info.artId); if (a) { a.est[it.dados.estado] = (a.est[it.dados.estado] || 0) - 1; normalizarArtigo(a); } }
+  const e = it.info.esp; if (e && !ESPERA.some(x => x.idE === e.idE)) ESPERA.push(e);
+  const p = it.info.peca; if (p && !PECAS.some(x => x.id === p.id)) PECAS.push(p);
+  document.getElementById('nEsp').textContent = ESPERA.length ? '(' + ESPERA.length + ')' : '';
+  if (TAB_ATUAL === 'esp') desenharEspera();
+};
+// Tira a peça da Espera no ecrã e põe o pedido na fila
+function esperaParaFila(e, acao, dados, msg, extra) {
+  const peca = PECAS.find(x => x.espera === e.idE);
+  ESPERA = ESPERA.filter(x => x.idE !== e.idE); espAberta = null; PECAS = PECAS.filter(x => x.espera !== e.idE);
+  document.getElementById('nEsp').textContent = ESPERA.length ? '(' + ESPERA.length + ')' : '';
+  porNaFila('espera', acao, dados, Object.assign({ esp: e, peca, rotulo: e.tipo }, extra || {}));
+  toast(msg); desenharEspera();
+}
+/* /FILA */
+
+/* =====================================================================
    ⚙️ PERSONALIZAR: cada pessoa escolhe o que vê (fica guardado neste aparelho).
    Só muda o aspeto: nada é apagado nem desligado nos dados.
    Da primeira vez abre em "Simples".
@@ -3461,5 +3531,6 @@ function toast(t) { const m = document.getElementById('msg'); m.textContent = t;
 </script>
 <!-- /MOLDURA -->
 <div id="barraOcup"></div><div id="vGuardar" class="hidden"><div><span class="giro"></span>A guardar…</div></div>
+<div id="filaInd" class="hidden"></div>
 </body>
 </html>

@@ -56,6 +56,8 @@
   .verif { background:#fff; border:2px solid var(--acc); border-radius:14px; padding:12px; margin:10px 0; }
   .verif h3 { margin:0 0 2px; font-size:1.05rem; }
   /* DEFEITOS NA PEÇA */
+  /* estados não previstos para a peça (folha Tipos): aparecem mais claros, com ⚠ */
+  .chip.fora { opacity:.5; border-style:dashed; } .chip.fora.sel { opacity:1; }
   .defChips { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; align-items:center; }
   .defChip { display:inline-flex; align-items:center; gap:2px; background:#fff3e0; border:1px solid #f0c890; color:#7a4a00; border-radius:999px; padding:2px 4px 2px 9px; font-size:.8rem; }
   .defChip button { border:0; background:none; color:#a3402e; font-size:.85rem; cursor:pointer; padding:0 4px; }
@@ -1793,11 +1795,9 @@ function painelEspera(e) {
   const desenharDefs = () => { zDef.innerHTML = htmlDefeitosPeca(EE.defs); ligarDefeitosPeca(zDef, e.tipo, EE.defs, mudarDefs); };
   desenharDefs();
   const bDef = box.querySelector('.defBtn'); if (bDef) bDef.onclick = () => abrirDefeitos(e.tipo, (k, l) => mudarDefs(l, k), EE.defs);
-  const estOk = estadosDe(tipoInfo(e.tipo)).slice();
-  if (!estOk.some(x => x.chave === estE)) estOk.push(ESTADOS.find(x => x.chave === estE) || { chave: estE, nome: estE });
-  estOk.forEach(x => {
-    const b = document.createElement('button'); b.className = 'chip'; b.dataset.k = x.chave; b.textContent = curtoEst(x); b.title = x.nome;
-    b.onclick = () => { estE = EE.est = x.chave; pintar(); };
+  ESTADOS.forEach(x => {        // todos; os não previstos para esta peça mais claros (⚠) e com confirmação
+    const b = document.createElement('button'); b.className = 'chip' + (estPrevisto(e.tipo, x.chave) ? '' : ' fora'); b.dataset.k = x.chave; b.textContent = chipEstTxt(e.tipo, x); b.title = x.nome;
+    b.onclick = () => { if (!confirmarEstFora(e.tipo, x.chave)) return; estE = EE.est = x.chave; pintar(); };
     zEst.appendChild(b);
   });
   const pintar = () => {
@@ -1867,7 +1867,7 @@ function painelEspera(e) {
   };
 
   ok.onclick = () => {
-    const dados = { idE: e.idE, tamanho: escolhido, estado: estE, cm: (box.querySelector('.mCm') || {}).value || '', defeitos: EE.defs };
+    const dados = { idE: e.idE, tamanho: escolhido, estado: estE, cm: (box.querySelector('.mCm') || {}).value || '', defeitos: EE.defs, forcar: !estPrevisto(e.tipo, estE) };
     if (SEM_STOCK) { esperaParaFila(e, 'arrumar', dados, '✔ Guardar em: ' + e.tipo + ' · tam. ' + escolhido + ' (' + nomeEst(estE) + ')'); return; }
     // com stock: o número sobe logo no ecrã (o servidor confirma depois)
     const a = ARTIGOS.find(x => x.subcategoria === e.tipo && x.tamanho === escolhido);
@@ -2792,12 +2792,12 @@ function cartaoPeca(p, primeira) {
     htmlDefeitosPeca(E.defs);
   if (ed) {
     const tams = typeof tamsDoTipoSem === 'function' ? tamsDoTipoSem(p.tipo) : [];
-    const t = tipoInfo(p.tipo), ests = t ? estadosDe(t) : ESTADOS, tMed = tipoMedidaPara(p.tipo);
+    const t = tipoInfo(p.tipo), ests = ESTADOS, tMed = tipoMedidaPara(p.tipo);   // todos; os não previstos mais claros (⚠)
     h += '<div class="cpEd"><div class="filtro-tit">Tamanho</div><div class="chips">' +
       tams.map(x => '<button class="chip' + (x === tam ? ' sel' : '') + '" data-tam="' + esc(x) + '">' + esc(x) + '</button>').join('') + '</div>' +
       medidaCartao(p, E) +
       '<div class="filtro-tit">Estado' + (DEFEITOS.lista.length ? '<button class="defBtn">🔍 Defeito?</button>' : '') + '</div><div class="chips">' +
-      ests.map(e => '<button class="chip' + (e.chave === est ? ' sel' : '') + '" data-est="' + esc(e.chave) + '" title="' + esc(e.nome) + '">' + esc(curtoEst(e)) + '</button>').join('') + '</div></div>';
+      ests.map(e => '<button class="chip' + (e.chave === est ? ' sel' : '') + (estPrevisto(p.tipo, e.chave) ? '' : ' fora') + '" data-est="' + esc(e.chave) + '" title="' + esc(e.nome) + '">' + esc(chipEstTxt(p.tipo, e)) + '</button>').join('') + '</div></div>';
   }
   h += '<div class="cpAcoes"><button class="btnArr"' + (semTam && !tam ? ' disabled' : '') + '>✔ Arrumada</button>' +
     (!semTam ? '<button class="mini2 btnEd">' + (ed ? '✕ fechar' : '📏 Remedir / estado') + '</button>' : '') +
@@ -2834,7 +2834,7 @@ function ligarCartoes() {
     const semTam = p.sit === 'Na Espera';
     const E = edDe(p);
     c.querySelectorAll('[data-tam]').forEach(b => b.onclick = () => { E.tam = b.dataset.tam; desenharPecas(); });
-    c.querySelectorAll('[data-est]').forEach(b => b.onclick = () => { E.est = b.dataset.est; desenharPecas(); });
+    c.querySelectorAll('[data-est]').forEach(b => b.onclick = () => { if (!confirmarEstFora(p.tipo, b.dataset.est)) return; E.est = b.dataset.est; desenharPecas(); });
     const mudarDefs = (l, k) => { E.defs = l; E.est = k; E.defsMudou = true; desenharPecas(); };
     const bd = c.querySelector('.defBtn'); if (bd) bd.onclick = () => abrirDefeitos(p.tipo, (k, l) => mudarDefs(l, k), E.defs);
     ligarDefeitosPeca(c, p.tipo, E.defs, mudarDefs);
@@ -2850,7 +2850,7 @@ function ligarCartoes() {
       const tam = ed ? E.tam : p.tam, est = ed || E.defsMudou ? E.est : p.estado;
       if (semTam) {
         if (!tam) { toast('Escolhe ou mede o tamanho.'); return; }
-        gravarPeca(p, 'arrumar', { idE: p.espera, tamanho: tam, estado: est, cm: E.cm || '', defeitos: E.defs }, '✔ ' + p.tipo + ' tam. ' + tam + ' · ' + bolaEst(est));
+        gravarPeca(p, 'arrumar', { idE: p.espera, tamanho: tam, estado: est, cm: E.cm || '', defeitos: E.defs, forcar: !estPrevisto(p.tipo, est) }, '✔ ' + p.tipo + ' tam. ' + tam + ' · ' + bolaEst(est));
       } else {
         const d = { ids: [p.id], situacao: 'Arrumada' };
         if (E.defsMudou) d.defeitos = E.defs;
@@ -3196,6 +3196,12 @@ function defeitosDoTipo(tipo) {
   return L.filter(d => !(info.ocultos || []).includes(d.texto)).map(d => Object.assign({ recusa: (info.recusa || []).includes(d.texto) }, d));
 }
 const ordemEst = k => ESTADOS.findIndex(e => e.chave === k);
+// Estado previsto para esta peça (folha Tipos)? Na Espera/Arrumar os outros também se podem usar, com confirmação
+const estPrevisto = (tipo, k) => estadosDe(tipoInfo(tipo)).some(e => e.chave === k);
+function confirmarEstFora(tipo, k) {
+  return estPrevisto(tipo, k) || confirm('O estado ' + nomeEst(k) + ' não está previsto para ' + tipo + ' (folha Tipos).\n\nUsar mesmo assim?');
+}
+const chipEstTxt = (tipo, e) => (estPrevisto(tipo, e.chave) ? '' : '⚠ ') + curtoEst(e);
 // Estado que resulta dos defeitos (o pior); sem defeitos → C0
 function estDeDefeitos(defs) {
   let k = null;
@@ -3248,12 +3254,13 @@ function abrirDefeitos(tipo, aoEscolher, inicial) {
     const k = pior(), rec = lista.filter(d => marcados.has(d.texto) && d.recusa);
     const permitido = !k || estadosDe(tipoInfo(tipo)).some(e => e.chave === k);
     res.innerHTML = !marcados.size ? 'Toca no(s) defeito(s).' : (rec.length ? '⚠ <b>Não se aceita nesta peça:</b> ' + rec.map(d => esc(d.texto)).join(', ') + '<br>' : '') +
-      (k ? 'Estado: <b>' + esc(nomeEst(k)) + '</b>' + (permitido ? '' : '<br>⚠ Este estado não está ligado para esta peça (folha Tipos).') : '');
-    ok.disabled = k ? !permitido : !tinha;
-    ok.textContent = k ? 'Usar ' + curtoEst(ESTADOS.find(x => x.chave === k) || { nome: k }) : tinha ? 'Sem defeitos' : 'Escolhe';
+      (k ? 'Estado: <b>' + esc(nomeEst(k)) + '</b>' + (permitido ? '' : '<br>⚠ Estado não previsto para esta peça (folha Tipos): podes usá-lo na mesma.') : '');
+    ok.disabled = k ? false : !tinha;
+    ok.textContent = k ? 'Usar ' + (permitido ? '' : '⚠ ') + curtoEst(ESTADOS.find(x => x.chave === k) || { nome: k }) : tinha ? 'Sem defeitos' : 'Escolhe';
   };
   q.oninput = desenhar;
   ok.onclick = () => {
+    const kk = pior(); if (kk && !confirmarEstFora(tipo, kk)) return;
     const defs = outros.concat(lista.filter(d => marcados.has(d.texto)).map(d => d.texto));
     fechar(); aoEscolher(pior() || estDeDefeitos(outros), defs);
   };
